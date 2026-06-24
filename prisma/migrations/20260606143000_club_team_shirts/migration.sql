@@ -1,0 +1,7 @@
+ALTER TABLE "Club" ADD COLUMN "shirtName" TEXT;
+ALTER TABLE "Club" ADD COLUMN "shirtColor" TEXT;
+ALTER TABLE "Club" ADD COLUMN "shirtImageUrl" TEXT;
+
+ALTER TABLE "Team" ADD COLUMN "shirtName" TEXT;
+ALTER TABLE "Team" ADD COLUMN "shirtColor" TEXT;
+ALTER TABLE "Team" ADD COLUMN "shirtImageUrl" TEXT;

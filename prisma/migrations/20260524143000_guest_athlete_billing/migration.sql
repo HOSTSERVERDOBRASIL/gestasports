@@ -1,0 +1,2 @@
+ALTER TABLE "Athlete" ADD COLUMN "guestBillingEnabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Athlete" ADD COLUMN "guestFeeCents" INTEGER NOT NULL DEFAULT 0;

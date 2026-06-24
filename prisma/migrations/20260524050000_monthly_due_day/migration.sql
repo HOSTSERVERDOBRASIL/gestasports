@@ -1,0 +1,1 @@
+ALTER TABLE "PaymentSettings" ADD COLUMN "monthlyDueDay" INTEGER NOT NULL DEFAULT 10;

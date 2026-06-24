@@ -1,0 +1,41 @@
+# INICIAR GESTASPORTS
+
+Sistema complexo de gestão de clubes esportivos com arquitetura multi-clube. O GestaSports gerencia a plataforma e permite adicionar clubes independentes, cada um com seus próprios dados, usuários e módulos.
+
+## Início rápido
+
+1. Abra o Docker Desktop.
+2. No terminal do VS Code, execute:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File INIT.ps1
+```
+
+3. Acesse:
+
+- Frontend: http://localhost:5173
+- Backend/API: http://localhost:3333
+
+## Estrutura principal
+
+- `src/`: backend Fastify, módulos e regras de negócio.
+- `frontend/src/`: aplicação React.
+- `prisma/`: schema, migrations e seed.
+- `scripts/`: operações de tenants/clubes.
+
+## Conceitos que importam
+
+- GestaSports é o produto/plataforma.
+- Cada clube é um tenant independente.
+- Superadmin gerencia clubes, planos, status e módulos.
+- Usuários dos clubes acessam financeiro, atletas, associados, jogos, relatórios e configurações conforme permissão.
+
+## Se algo quebrar
+
+```powershell
+docker-compose down -v
+npx prisma migrate dev
+npm run prisma:seed
+```
+
+Logs importantes ficam no terminal do backend, terminal do frontend e no container do PostgreSQL.

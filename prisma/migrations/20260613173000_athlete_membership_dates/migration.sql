@@ -1,0 +1,2 @@
+ALTER TABLE "Associate" ADD COLUMN "joinedAt" TIMESTAMP(3);
+ALTER TABLE "Athlete" ADD COLUMN "joinedAt" TIMESTAMP(3);

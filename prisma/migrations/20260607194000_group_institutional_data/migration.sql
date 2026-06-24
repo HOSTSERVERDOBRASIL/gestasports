@@ -1,0 +1,16 @@
+ALTER TABLE "GroupSettings"
+ADD COLUMN "organizationType" TEXT NOT NULL DEFAULT 'ASSOCIACAO',
+ADD COLUMN "foundedAt" TIMESTAMP(3),
+ADD COLUMN "foundationYear" INTEGER,
+ADD COLUMN "documentNumber" TEXT,
+ADD COLUMN "phone" TEXT,
+ADD COLUMN "email" TEXT,
+ADD COLUMN "websiteUrl" TEXT,
+ADD COLUMN "address" TEXT,
+ADD COLUMN "addressNumber" TEXT,
+ADD COLUMN "neighborhood" TEXT,
+ADD COLUMN "city" TEXT,
+ADD COLUMN "state" TEXT,
+ADD COLUMN "postalCode" TEXT,
+ADD COLUMN "country" TEXT NOT NULL DEFAULT 'Brasil',
+ADD COLUMN "history" TEXT;

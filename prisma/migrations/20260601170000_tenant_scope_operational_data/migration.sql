@@ -1,0 +1,117 @@
+ALTER TABLE "User" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "GroupSettings" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "PaymentSettings" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "JoinRequest" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "Associate" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "BoardRole" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "PresidentTerm" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "Match" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "Attendance" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "Payment" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "CollectionActionLog" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "Expense" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "GoalkeeperContract" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "Season" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "Athlete" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "AthleteTechnicalEvaluation" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "Game" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "GameLineup" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "GameEvent" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "GameSubstitution" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "CardRecord" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "Suspension" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "ConfrontationMatch" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "FinancialEntry" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "MediaAsset" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "AuditLog" ADD COLUMN "tenantId" TEXT;
+ALTER TABLE "LineupDraftAttempt" ADD COLUMN "tenantId" TEXT;
+
+DO $$
+DECLARE
+  flamilha_tenant_id TEXT;
+BEGIN
+  SELECT id INTO flamilha_tenant_id FROM "OrganizationTenant" WHERE slug = 'flamilha' LIMIT 1;
+
+  IF flamilha_tenant_id IS NOT NULL THEN
+    UPDATE "User" SET "tenantId" = flamilha_tenant_id WHERE role <> 'SUPERADMIN' AND "tenantId" IS NULL;
+    UPDATE "GroupSettings" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "PaymentSettings" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "JoinRequest" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "Associate" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "BoardRole" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "PresidentTerm" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "Match" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "Attendance" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "Payment" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "CollectionActionLog" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "Expense" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "GoalkeeperContract" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "Season" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "Athlete" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "AthleteTechnicalEvaluation" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "Game" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "GameLineup" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "GameEvent" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "GameSubstitution" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "CardRecord" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "Suspension" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "ConfrontationMatch" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "FinancialEntry" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "MediaAsset" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "AuditLog" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+    UPDATE "LineupDraftAttempt" SET "tenantId" = flamilha_tenant_id WHERE "tenantId" IS NULL;
+  END IF;
+END $$;
+
+DROP INDEX IF EXISTS "User_email_key";
+DROP INDEX IF EXISTS "Associate_email_key";
+DROP INDEX IF EXISTS "JoinRequest_email_status_key";
+DROP INDEX IF EXISTS "BoardRole_name_key";
+DROP INDEX IF EXISTS "Season_year_name_key";
+
+CREATE UNIQUE INDEX "User_tenantId_email_key" ON "User"("tenantId", "email");
+CREATE UNIQUE INDEX "Associate_tenantId_email_key" ON "Associate"("tenantId", "email");
+CREATE UNIQUE INDEX "JoinRequest_tenantId_email_status_key" ON "JoinRequest"("tenantId", "email", "status");
+CREATE UNIQUE INDEX "BoardRole_tenantId_name_key" ON "BoardRole"("tenantId", "name");
+CREATE UNIQUE INDEX "Season_tenantId_year_name_key" ON "Season"("tenantId", "year", "name");
+CREATE UNIQUE INDEX "GroupSettings_tenantId_key" ON "GroupSettings"("tenantId");
+CREATE UNIQUE INDEX "PaymentSettings_tenantId_key" ON "PaymentSettings"("tenantId");
+
+CREATE INDEX "User_tenantId_role_idx" ON "User"("tenantId", "role");
+CREATE INDEX "Associate_tenantId_status_idx" ON "Associate"("tenantId", "status");
+CREATE INDEX "JoinRequest_tenantId_status_createdAt_idx" ON "JoinRequest"("tenantId", "status", "createdAt");
+CREATE INDEX "Match_tenantId_startsAt_idx" ON "Match"("tenantId", "startsAt");
+CREATE INDEX "Attendance_tenantId_matchId_idx" ON "Attendance"("tenantId", "matchId");
+CREATE INDEX "Payment_tenantId_year_month_idx" ON "Payment"("tenantId", "year", "month");
+CREATE INDEX "FinancialEntry_tenantId_competenceYear_competenceMonth_idx" ON "FinancialEntry"("tenantId", "competenceYear", "competenceMonth");
+CREATE INDEX "Game_tenantId_type_date_idx" ON "Game"("tenantId", "type", "date");
+CREATE INDEX "Athlete_tenantId_status_position_idx" ON "Athlete"("tenantId", "status", "position");
+CREATE INDEX "AuditLog_tenantId_createdAt_idx" ON "AuditLog"("tenantId", "createdAt");
+
+ALTER TABLE "User" ADD CONSTRAINT "User_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GroupSettings" ADD CONSTRAINT "GroupSettings_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PaymentSettings" ADD CONSTRAINT "PaymentSettings_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "JoinRequest" ADD CONSTRAINT "JoinRequest_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Associate" ADD CONSTRAINT "Associate_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "BoardRole" ADD CONSTRAINT "BoardRole_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PresidentTerm" ADD CONSTRAINT "PresidentTerm_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Match" ADD CONSTRAINT "Match_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Attendance" ADD CONSTRAINT "Attendance_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "CollectionActionLog" ADD CONSTRAINT "CollectionActionLog_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Expense" ADD CONSTRAINT "Expense_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GoalkeeperContract" ADD CONSTRAINT "GoalkeeperContract_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Season" ADD CONSTRAINT "Season_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Athlete" ADD CONSTRAINT "Athlete_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AthleteTechnicalEvaluation" ADD CONSTRAINT "AthleteTechnicalEvaluation_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Game" ADD CONSTRAINT "Game_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GameLineup" ADD CONSTRAINT "GameLineup_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GameEvent" ADD CONSTRAINT "GameEvent_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GameSubstitution" ADD CONSTRAINT "GameSubstitution_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "CardRecord" ADD CONSTRAINT "CardRecord_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Suspension" ADD CONSTRAINT "Suspension_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ConfrontationMatch" ADD CONSTRAINT "ConfrontationMatch_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "FinancialEntry" ADD CONSTRAINT "FinancialEntry_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "MediaAsset" ADD CONSTRAINT "MediaAsset_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "LineupDraftAttempt" ADD CONSTRAINT "LineupDraftAttempt_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "OrganizationTenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;

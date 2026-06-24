@@ -1,0 +1,1707 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AssociateStatus {
+  ACTIVE
+  LATE
+  INACTIVE
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  LATE
+}
+
+enum CollectionStage {
+  PRE_DUE_3
+  D_PLUS_3
+  D_PLUS_7
+  D_PLUS_15
+}
+
+enum CollectionChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum ExpenseCategory {
+  FIELD
+  GOALKEEPERS
+  REFEREE
+  UNIFORMS
+  OTHER
+}
+
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  SPORTS_DIRECTOR
+  ASSOCIATE
+  ATHLETE
+  FINANCIAL
+}
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  IMPLEMENTATION
+  SUSPENDED
+  CANCELED
+}
+
+enum TenantDomainStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+enum TenantProvisioningStatus {
+  NOT_STARTED
+  DATABASE_PENDING
+  MIGRATING
+  READY
+  FAILED
+}
+
+enum SaaSChargeType {
+  MONTHLY
+  IMPLEMENTATION
+  EXTRA
+}
+
+enum SaaSChargeStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELED
+}
+
+enum TenantModuleCode {
+  ATHLETES
+  ASSOCIATES
+  CLUBS
+  TEAMS
+  GAMES
+  LINEUPS
+  CALLUPS
+  COMPETITIONS
+  EVENTS
+  ATTENDANCE
+  RANKINGS
+  OFFICIAL_STATS
+  FINANCE
+  REPORTS
+  DOCUMENTS
+  COMMUNICATION
+  GALLERY
+  SETTINGS
+}
+
+enum OrganizationType {
+  GRUPO_INTERNO
+  CLUBE
+  CLUBE_COM_RACHA_INTERNO
+  LIGA
+  ESCOLINHA
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AthletePosition {
+  GOALKEEPER
+  DEFENDER
+  FULLBACK
+  MIDFIELDER
+  FORWARD
+  LINE
+  BOTH
+  RIGHT_BACK
+  LEFT_BACK
+  DEFENSIVE_MIDFIELDER
+  CENTRAL_MIDFIELDER
+  ATTACKING_MIDFIELDER
+  RIGHT_WINGER
+  LEFT_WINGER
+  STRIKER
+}
+
+enum AthleteLinkType {
+  ASSOCIATE
+  CONTRACTED
+  GUEST
+}
+
+enum AthleteStatus {
+  ACTIVE
+  INACTIVE
+  DELINQUENT
+  SUSPENDED
+}
+
+enum FinancialEntryType {
+  INCOME
+  EXPENSE
+}
+
+enum FinancialEntryStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELED
+}
+
+enum FinancialCategory {
+  MONTHLY_FEE
+  EVENTS
+  SPONSORSHIP
+  FUNDRAISING
+  FIELD
+  REFEREE
+  GOALKEEPER_CONTRACT
+  UNIFORMS
+  ADMINISTRATIVE
+  OTHER
+}
+
+enum GoalkeeperCostModel {
+  PER_GAME
+  MONTHLY
+  ONE_OFF
+}
+
+enum GameType {
+  INTERNAL
+  EXTERNAL
+}
+
+enum GameMode {
+  INTERNAL_SPLIT
+  FRIENDLY
+  CHAMPIONSHIP
+  TOURNAMENT
+  TRAINING
+  EXTERNAL_FRIENDLY
+}
+
+enum GameStatus {
+  SCHEDULED
+  RUNNING
+  PAUSED
+  FINISHED
+  CANCELED
+}
+
+enum TeamSide {
+  RED
+  WHITE
+  EXTERNAL
+}
+
+enum LineupRole {
+  STARTER
+  RESERVE
+  GOALKEEPER
+  ABSENT
+}
+
+enum EventType {
+  GOAL
+  ASSIST
+  YELLOW_CARD
+  RED_CARD
+}
+
+enum CardType {
+  YELLOW
+  RED
+}
+
+enum SuspensionOrigin {
+  YELLOW_ACCUMULATION
+  DIRECT_RED
+  MANUAL
+}
+
+enum MediaType {
+  ATHLETE_PROFILE
+  GAME
+  CONFRONTATION
+  EVENT
+  FINANCIAL_RECEIPT
+  GENERAL
+}
+
+enum ArchiveItemType {
+  DASHBOARD
+  GAME
+  ATHLETE
+  DIRECTOR
+  TITLE
+  MATCH_REPORT
+  TIMELINE
+  SHIRT
+  GALLERY
+  DOCUMENT
+  AWARD
+  ASSET
+  HALL_OF_FAME
+}
+
+enum ArchiveItemStatus {
+  DRAFT
+  PUBLISHED
+  PRIVATE
+}
+
+enum ArchiveAttachmentType {
+  IMAGE
+  VIDEO
+  PDF
+  DOCUMENT
+  LINK
+  OTHER
+}
+
+enum ClubEventStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  CANCELED
+}
+
+enum ClubEventType {
+  SOCIAL
+  SPORT
+  FUNDRAISING
+  MEETING
+  COMMUNITY
+  OTHER
+}
+
+enum ClubEventRegistrationStatus {
+  PENDING
+  CONFIRMED
+  CANCELED
+  CHECKED_IN
+}
+
+enum ClubType {
+  INTERNAL
+  EXTERNAL
+  PARTNER
+  GUEST
+}
+
+enum FieldStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum ClubStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TeamCategory {
+  PRINCIPAL
+  VETERANO
+  SUB_20
+  SUB_17
+  SUB_15
+  FEMININO
+  MISTO
+}
+
+enum TeamGender {
+  MALE
+  FEMALE
+  MIXED
+}
+
+enum TeamStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CallUpStatus {
+  CALLED
+  CONFIRMED
+  DECLINED
+  MAYBE
+  ABSENT
+  CUT
+}
+
+enum CompetitionType {
+  LEAGUE
+  CUP
+  TOURNAMENT
+  FRIENDLY_SERIES
+}
+
+enum CompetitionFormat {
+  PONTOS_CORRIDOS
+  MATA_MATA
+  GRUPOS
+  GRUPOS_E_MATA_MATA
+  JOGO_UNICO
+  IDA_E_VOLTA
+}
+
+enum CompetitionStatus {
+  DRAFT
+  ACTIVE
+  FINISHED
+  CANCELED
+}
+
+enum CompetitionTeamStatus {
+  ACTIVE
+  WITHDRAWN
+}
+
+enum ConfrontationType {
+  FRIENDLY
+  CHAMPIONSHIP
+  TOURNAMENT
+  FINAL
+  SEMIFINAL
+  OTHER
+}
+
+enum ConfrontationStatus {
+  SCHEDULED
+  RUNNING
+  FINISHED
+  CANCELED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String?
+  name         String
+  email        String
+  passwordHash String
+  role         UserRole @default(ATHLETE)
+  associateId  String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant        OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  associate     Associate?    @relation("UserAssociate", fields: [associateId], references: [id])
+  invitedGuests JoinRequest[] @relation("InvitedByUser")
+  mediaAssets   MediaAsset[]
+  archiveItems  ArchiveItem[]
+  roleAssignments UserRoleAssignment[]
+  passwordResetTokens PasswordResetToken[]
+  auditLogs AuditLog[]
+  lineupDraftAttempts LineupDraftAttempt[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId, role])
+}
+
+model OrganizationTenant {
+  id                         String       @id @default(cuid())
+  planId                     String?
+  name                       String
+  slug                       String       @unique
+  contactName                String?
+  contactEmail               String?
+  contactPhone               String?
+  status                     TenantStatus @default(IMPLEMENTATION)
+  planName                   String       @default("Padrão")
+  monthlyFeeCents            Int          @default(0)
+  implementationFeeCents     Int          @default(0)
+  monthlyDueDay              Int          @default(10)
+  defaultSubdomain           String       @unique
+  databaseName               String       @unique
+  databaseUrl                String?
+  provisioningStatus         TenantProvisioningStatus @default(NOT_STARTED)
+  provisioningError          String?
+  provisionedAt              DateTime?
+  brandName                  String?
+  primaryColor               String       @default("#dc2626")
+  secondaryColor             String       @default("#111827")
+  accentColor                String       @default("#facc15")
+  logoUrl                    String?
+  menuStyle                  String       @default("brand")
+  interfaceEffects           String       @default("soft")
+  organizationType           OrganizationType @default(CLUBE_COM_RACHA_INTERNO)
+  mainClubName               String?
+  mainClubLogoUrl            String?
+  mainClubPrimaryColor       String?
+  mainClubSecondaryColor     String?
+  activeCategories           TeamCategory[] @default([])
+  usesFinance                Boolean      @default(true)
+  usesAssociates             Boolean      @default(true)
+  usesExternalGames          Boolean      @default(true)
+  usesCompetitions           Boolean      @default(false)
+  usesInternalRanking        Boolean      @default(true)
+  notes                      String?
+  suspendedReason            String?
+  activatedAt                DateTime?
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
+
+  domains TenantDomain[]
+  charges SaaSCharge[]
+  modules TenantModule[]
+  plan SaaSPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  users User[]
+  groupSettings GroupSettings?
+  paymentSettings PaymentSettings?
+  joinRequests JoinRequest[]
+  associates Associate[]
+  boardRoles BoardRole[]
+  boardMemberTerms BoardMemberTerm[]
+  presidentTerms PresidentTerm[]
+  uniformHistories UniformHistory[]
+  matches Match[]
+  attendances Attendance[]
+  payments Payment[]
+  collectionActions CollectionActionLog[]
+  expenses Expense[]
+  goalkeeperContracts GoalkeeperContract[]
+  seasons Season[]
+  athletes Athlete[]
+  athleteTechnicalEvaluations AthleteTechnicalEvaluation[]
+  games Game[]
+  clubs Club[]
+  teams Team[]
+  fields Field[]
+  gameCallUps GameCallUp[]
+  competitions Competition[]
+  competitionTeams CompetitionTeam[]
+  confrontations Confrontation[]
+  gameLineups GameLineup[]
+  gameEvents GameEvent[]
+  gameSubstitutions GameSubstitution[]
+  cardRecords CardRecord[]
+  suspensions Suspension[]
+  confrontationMatches ConfrontationMatch[]
+  financialEntries FinancialEntry[]
+  mediaAssets MediaAsset[]
+  archiveItems ArchiveItem[]
+  memorialCategories MemorialCategory[]
+  dashboardLayouts DashboardLayout[]
+  dashboardSnapshots TenantDashboardSnapshot[]
+  auditLogs AuditLog[]
+  lineupDraftAttempts LineupDraftAttempt[]
+  clubEvents ClubEvent[]
+  clubEventRegistrations ClubEventRegistration[]
+
+  @@index([status, createdAt])
+  @@index([contactEmail])
+  @@index([planId])
+}
+
+model DashboardLayout {
+  id        String   @id @default(cuid())
+  tenantId  String
+  scope     String   @default("ASSOCIATION")
+  layout    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant OrganizationTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, scope])
+  @@index([tenantId])
+}
+
+model TenantDashboardSnapshot {
+  id                     String   @id @default(cuid())
+  tenantId               String
+  scope                  String   @default("ASSOCIATION")
+  month                  Int
+  year                   Int
+  associatesActive       Int      @default(0)
+  athletesReady          Int      @default(0)
+  monthRevenueCents      Int      @default(0)
+  monthExpenseCents      Int      @default(0)
+  balanceCents           Int      @default(0)
+  delinquencyAmountCents Int      @default(0)
+  delinquencyCount       Int      @default(0)
+  attendancePercent      Int      @default(0)
+  healthScore            Int      @default(0)
+  payload                Json
+  generatedAt            DateTime @default(now())
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  tenant OrganizationTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, scope, month, year])
+  @@index([tenantId, year, month])
+  @@index([tenantId, healthScore])
+}
+
+model SaaSPlan {
+  id                         String             @id @default(cuid())
+  name                       String
+  slug                       String             @unique
+  description                String?
+  monthlyFeeCents            Int                @default(0)
+  implementationFeeCents     Int                @default(0)
+  monthlyDueDay              Int                @default(10)
+  maxUsers                   Int?
+  maxAthletes                Int?
+  maxTeams                   Int?
+  customDomainAllowed        Boolean            @default(false)
+  moduleCodes                TenantModuleCode[]
+  active                     Boolean            @default(true)
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
+
+  tenants OrganizationTenant[]
+
+  @@index([active, monthlyFeeCents])
+}
+
+model PlatformSettings {
+  id                         String   @id @default("default")
+  platformName               String   @default("GestaSports")
+  supportEmail               String   @default("suporte@gestasports.com.br")
+  commercialEmail            String   @default("comercial@gestasports.com.br")
+  baseDomain                 String   @default("gestasports.com.br")
+  defaultTrialDays           Int      @default(14)
+  defaultImplementationDays  Int      @default(7)
+  defaultBillingGraceDays    Int      @default(7)
+  defaultMonthlyDueDay       Int      @default(10)
+  autoSuspendEnabled         Boolean  @default(true)
+  autoReactivateEnabled      Boolean  @default(true)
+  requireVerifiedDomain      Boolean  @default(false)
+  allowPathAccess            Boolean  @default(true)
+  defaultProvisioningMode    String   @default("AUTOMATIC")
+  tenantNamingPattern        String   @default("{slug}")
+  auditRetentionDays         Int      @default(180)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+}
+
+model TenantModule {
+  id        String           @id @default(cuid())
+  tenantId  String
+  code      TenantModuleCode
+  enabled   Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  tenant OrganizationTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, enabled])
+}
+
+model TenantDomain {
+  id              String             @id @default(cuid())
+  tenantId        String
+  hostname        String             @unique
+  type            String             @default("CUSTOM")
+  status          TenantDomainStatus @default(PENDING)
+  expectedCname   String
+  lastCheckedAt   DateTime?
+  verifiedAt      DateTime?
+  failureReason   String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  tenant OrganizationTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+}
+
+model SaaSCharge {
+  id              String           @id @default(cuid())
+  tenantId        String
+  type            SaaSChargeType
+  description     String
+  amountCents     Int
+  competenceMonth Int?
+  competenceYear  Int?
+  dueDate         DateTime
+  paidAt          DateTime?
+  status          SaaSChargeStatus @default(PENDING)
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  tenant OrganizationTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, type, competenceMonth, competenceYear])
+  @@index([status, dueDate])
+  @@index([competenceYear, competenceMonth])
+}
+
+model LineupDraftAttempt {
+  id           String   @id @default(cuid())
+  tenantId     String?
+  gameId       String
+  attemptNumber Int
+  createdById  String?
+  createdByName String?
+  redSnapshot  Json
+  whiteSnapshot Json
+  redBenchSnapshot Json?
+  whiteBenchSnapshot Json?
+  blockedSnapshot Json?
+  notes        Json?
+  totals       Json
+  createdAt    DateTime @default(now())
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([gameId, attemptNumber])
+  @@index([gameId, createdAt])
+  @@index([createdById, createdAt])
+  @@index([tenantId, createdAt])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  userId      String?
+  userName    String?
+  userEmail   String?
+  userRole    UserRole?
+  action      String
+  method      String
+  path        String
+  statusCode  Int
+  targetType  String?
+  targetId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([tenantId, createdAt])
+}
+
+model UserRoleAssignment {
+  id         String   @id @default(cuid())
+  userId     String
+  role       UserRole
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([role])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model GroupSettings {
+  id                   String   @id @default(cuid())
+  tenantId             String?  @unique
+  groupName            String   @default("GestaSports")
+  organizationType     String   @default("ASSOCIACAO")
+  foundedAt            DateTime?
+  foundationYear       Int?
+  documentNumber       String?
+  phone                String?
+  email                String?
+  websiteUrl           String?
+  address              String?
+  addressNumber        String?
+  neighborhood         String?
+  city                 String?
+  state                String?
+  postalCode           String?
+  country              String   @default("Brasil")
+  history              String?
+  playersPerTeam       Int      @default(11)
+  closedMode           Boolean  @default(true)
+  inviteCode           String?
+  uniform1Name         String   @default("Time A")
+  uniform1Season       String?
+  uniform1Color        String   @default("#94a3b8")
+  uniform1ImageUrl     String?
+  uniform2Name         String   @default("Time B")
+  uniform2Season       String?
+  uniform2Color        String   @default("#cbd5e1")
+  uniform2ImageUrl     String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model PaymentSettings {
+  id                   String   @id @default(cuid())
+  tenantId             String?  @unique
+  paymentMode          String   @default("MANUAL_PIX")
+  paymentProvider      String   @default("MANUAL_PIX")
+  providerEnvironment  String   @default("TEST")
+  providerApiKey       String?
+  providerClientId     String?
+  providerClientSecret String?
+  providerWebhookSecret String?
+  providerWebhookUrl   String?
+  autoSettleEnabled    Boolean  @default(false)
+  pixKey               String
+  pixReceiverName      String
+  pixCity              String
+  pixAutoSettleSeconds Int      @default(20)
+  monthlyDueDay        Int      @default(10)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model JoinRequest {
+  id                   String            @id @default(cuid())
+  tenantId             String?
+  name                 String
+  email                String
+  phone                String?
+  message              String?
+  invitedByAssociateId String
+  invitedByUserId      String
+  status               JoinRequestStatus @default(PENDING)
+  createdAt            DateTime          @default(now())
+  reviewedAt           DateTime?
+
+  tenant             OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invitedByAssociate Associate @relation(fields: [invitedByAssociateId], references: [id], onDelete: Restrict)
+  invitedByUser      User      @relation("InvitedByUser", fields: [invitedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, email, status])
+  @@index([status, createdAt])
+  @@index([tenantId, status, createdAt])
+}
+
+model Associate {
+  id              String          @id @default(cuid())
+  tenantId        String?
+  name            String
+  email           String?
+  phone           String?
+  status          AssociateStatus @default(ACTIVE)
+  monthlyFeeCents Int             @default(6000)
+  boardRoleId     String?
+  joinedAt        DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  tenant          OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user             User?            @relation("UserAssociate")
+  payments         Payment[]
+  attendances      Attendance[]
+  invitedGuests    JoinRequest[]
+  athlete          Athlete?
+  collectionActions CollectionActionLog[]
+  boardRole        BoardRole?       @relation(fields: [boardRoleId], references: [id], onDelete: SetNull)
+  boardMemberTerms BoardMemberTerm[]
+  financialEntries FinancialEntry[]
+  clubEventRegistrations ClubEventRegistration[]
+  coachedTeams     Team[] @relation("TeamCoachAssociate")
+  assistantTeams   Team[] @relation("TeamAssistantAssociate")
+  address          String?
+  birthDate        DateTime?
+  note             String?
+
+  @@unique([tenantId, email])
+  @@index([tenantId, status])
+  @@index([boardRoleId])
+}
+
+model BoardRole {
+  id                 String      @id @default(cuid())
+  tenantId           String?
+  name               String
+  description        String?
+  canAccessAdmin     Boolean     @default(false)
+  canAccessFinancial Boolean     @default(false)
+  canAccessAthlete   Boolean     @default(false)
+  isDefault          Boolean     @default(false)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  associates Associate[]
+  boardMemberTerms BoardMemberTerm[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model BoardMemberTerm {
+  id             String   @id @default(cuid())
+  tenantId       String?
+  associateId    String
+  boardRoleId    String
+  startedYear    Int
+  endedYear      Int?
+  note           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant    OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  associate Associate           @relation(fields: [associateId], references: [id], onDelete: Cascade)
+  boardRole BoardRole           @relation(fields: [boardRoleId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, startedYear, endedYear])
+  @@index([associateId])
+  @@index([boardRoleId])
+}
+
+model UniformHistory {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  side        String
+  seasonLabel String
+  seasonYear  Int?
+  name        String
+  color       String
+  imageUrl    String?
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, side, seasonLabel])
+  @@index([tenantId, seasonYear])
+}
+
+model PresidentTerm {
+  id           String   @id @default(cuid())
+  tenantId     String?
+  name         String
+  startedYear  Int
+  endedYear    Int?
+  photoUrl     String?
+  note         String?
+  achievements String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([startedYear, endedYear])
+  @@index([tenantId, startedYear, endedYear])
+}
+
+model Match {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  opponent  String
+  location  String
+  startsAt  DateTime
+  costCents Int
+  createdAt DateTime @default(now())
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  attendances Attendance[]
+
+  @@index([tenantId, startsAt])
+}
+
+model Attendance {
+  id          String  @id @default(cuid())
+  tenantId    String?
+  associateId String
+  matchId     String
+  confirmed   Boolean @default(false)
+
+  tenant    OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  associate Associate @relation(fields: [associateId], references: [id], onDelete: Cascade)
+  match     Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([associateId, matchId])
+  @@index([tenantId, matchId])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  tenantId    String?
+  associateId String
+  month       Int
+  year        Int
+  amountCents Int
+  dueDate     DateTime
+  paidAt      DateTime?
+  status      PaymentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  associate Associate @relation(fields: [associateId], references: [id], onDelete: Cascade)
+  collectionActions CollectionActionLog[]
+
+  @@index([year, month])
+  @@index([tenantId, year, month])
+}
+
+model CollectionActionLog {
+  id          String            @id @default(cuid())
+  tenantId    String?
+  associateId String
+  paymentId   String
+  stage       CollectionStage
+  channel     CollectionChannel
+  sentAt      DateTime          @default(now())
+  success     Boolean           @default(true)
+  message     String?
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  associate Associate @relation(fields: [associateId], references: [id], onDelete: Cascade)
+  payment   Payment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@unique([paymentId, stage, channel])
+  @@index([sentAt])
+  @@index([stage, channel])
+  @@index([tenantId, sentAt])
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  tenantId    String?
+  description String
+  category    ExpenseCategory
+  amountCents Int
+  occurredAt  DateTime
+  createdAt   DateTime        @default(now())
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([occurredAt])
+  @@index([tenantId, occurredAt])
+}
+
+model GoalkeeperContract {
+  id               String              @id @default(cuid())
+  tenantId         String?
+  keeperName       String
+  monthlyCostCents Int
+  startedAt        DateTime
+  endsAt           DateTime?
+  active           Boolean             @default(true)
+  costModel        GoalkeeperCostModel @default(MONTHLY)
+  paymentMethod    String?
+  note             String?
+  costCenter       String?
+  athleteId        String?
+  financialEntries FinancialEntry[]
+  tenant           OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  athlete          Athlete?            @relation(fields: [athleteId], references: [id], onDelete: SetNull)
+  createdAt        DateTime            @default(now())
+
+  @@index([active, startedAt])
+  @@index([tenantId, active, startedAt])
+}
+
+model Season {
+  id             String               @id @default(cuid())
+  tenantId       String?
+  name           String
+  year           Int
+  startsAt       DateTime
+  endsAt         DateTime
+  games          Game[]
+  competitions   Competition[]
+  realConfrontations Confrontation[]
+  cards          CardRecord[]
+  confrontations ConfrontationMatch[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, year, name])
+  @@index([tenantId, year])
+}
+
+model Athlete {
+  id                  String          @id @default(cuid())
+  tenantId            String?
+  name                String
+  position            AthletePosition
+  secondaryPositions  AthletePosition[] @default([])
+  linkType            AthleteLinkType
+  status              AthleteStatus   @default(ACTIVE)
+  rating              Int             @default(3)
+  birthDate           DateTime?
+  photoUrl            String?
+  sportsNote          String?
+  medicalStatus       String          @default("CLEARED")
+  medicalNote         String?
+  medicalReturnDate   DateTime?
+  medicalReportedBy   String?
+  associateId         String?         @unique
+  guestBillingEnabled Boolean         @default(false)
+  guestFeeCents       Int             @default(0)
+  joinedAt            DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  tenant              OrganizationTenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  associate           Associate?           @relation(fields: [associateId], references: [id], onDelete: SetNull)
+  lineups             GameLineup[]
+  callUps             GameCallUp[]
+  gameEvents          GameEvent[]
+  cards               CardRecord[]
+  suspensions         Suspension[]
+  substitutionsIn     GameSubstitution[]  @relation("SubstitutionIn")
+  substitutionsOut    GameSubstitution[]  @relation("SubstitutionOut")
+  goalkeeperContracts GoalkeeperContract[]
+  mediaAssets         MediaAsset[]
+  technicalEvaluations AthleteTechnicalEvaluation[]
+
+  @@index([status, position])
+  @@index([tenantId, status, position])
+}
+
+model AthleteTechnicalEvaluation {
+  id              String   @id @default(cuid())
+  tenantId        String?
+  athleteId       String
+  year            Int
+  evaluatedById   String?
+  evaluatedByName String?
+  evaluatedByEmail String?
+  technicalScore  Int
+  tacticalScore   Int
+  physicalScore   Int
+  defensiveScore  Int
+  offensiveScore  Int
+  commitmentScore Int
+  disciplineScore Int
+  manualScore     Float
+  statsScore      Float
+  finalScore      Float
+  classification  String
+  justification   String
+  notes           String?
+  statsSnapshot   Json
+  createdAt       DateTime @default(now())
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([athleteId, year, createdAt])
+  @@index([year, finalScore])
+  @@index([tenantId, year, finalScore])
+}
+
+model Club {
+  id               String     @id @default(cuid())
+  tenantId         String?
+  name             String
+  shortName        String?
+  slug             String
+  logoUrl          String?
+  shirtName        String?
+  shirtColor       String?
+  shirtImageUrl    String?
+  city             String?
+  state            String?
+  country          String?    @default("Brasil")
+  responsibleName  String?
+  responsiblePhone String?
+  responsibleEmail String?
+  type             ClubType   @default(EXTERNAL)
+  status           ClubStatus @default(ACTIVE)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teams Team[]
+  homeGames Game[] @relation("GameHomeClub")
+  awayGames Game[] @relation("GameAwayClub")
+  competitionTeams CompetitionTeam[]
+  homeConfrontations Confrontation[] @relation("ConfrontationHomeClub")
+  awayConfrontations Confrontation[] @relation("ConfrontationAwayClub")
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, type, status])
+  @@index([tenantId, name])
+}
+
+model ClubEvent {
+  id                   String          @id @default(cuid())
+  tenantId             String?
+  title                String
+  description          String?
+  type                 ClubEventType   @default(SOCIAL)
+  status               ClubEventStatus @default(DRAFT)
+  startsAt             DateTime
+  endsAt               DateTime?
+  location             String?
+  capacity             Int?
+  registrationEnabled  Boolean         @default(false)
+  registrationFeeCents Int             @default(0)
+  expectedRevenueCents Int             @default(0)
+  expectedExpenseCents Int             @default(0)
+  coverImageUrl        String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  registrations ClubEventRegistration[]
+
+  @@index([tenantId, startsAt])
+  @@index([tenantId, status, startsAt])
+  @@index([tenantId, type, startsAt])
+}
+
+model ClubEventRegistration {
+  id          String                      @id @default(cuid())
+  tenantId    String?
+  eventId     String
+  associateId String?
+  name        String
+  email       String?
+  phone       String?
+  status      ClubEventRegistrationStatus @default(PENDING)
+  amountCents Int                         @default(0)
+  paidAt      DateTime?
+  checkedInAt DateTime?
+  note        String?
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @updatedAt
+
+  tenant    OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  event     ClubEvent           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  associate Associate?          @relation(fields: [associateId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, eventId, associateId])
+  @@index([tenantId, eventId, status])
+  @@index([tenantId, associateId])
+}
+
+model Field {
+  id               String      @id @default(cuid())
+  tenantId         String?
+  name             String
+  address          String?
+  city             String?
+  state            String?
+  surface          String?
+  capacity         Int?
+  defaultCostCents Int         @default(0)
+  status           FieldStatus @default(ACTIVE)
+  notes            String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  games Game[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, status])
+  @@index([tenantId, city])
+}
+
+model Team {
+  id            String       @id @default(cuid())
+  tenantId      String?
+  clubId        String
+  name          String
+  category      TeamCategory @default(PRINCIPAL)
+  gender        TeamGender   @default(MIXED)
+  status        TeamStatus   @default(ACTIVE)
+  logoUrl       String?
+  shirtName     String?
+  shirtColor    String?
+  shirtImageUrl String?
+  coachName     String?
+  coachAssociateId String?
+  assistantName String?
+  assistantAssociateId String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  coachAssociate Associate? @relation("TeamCoachAssociate", fields: [coachAssociateId], references: [id], onDelete: SetNull)
+  assistantAssociate Associate? @relation("TeamAssistantAssociate", fields: [assistantAssociateId], references: [id], onDelete: SetNull)
+  homeGames Game[] @relation("GameHomeTeam")
+  awayGames Game[] @relation("GameAwayTeam")
+  competitionTeams CompetitionTeam[]
+  homeConfrontations Confrontation[] @relation("ConfrontationHomeTeam")
+  awayConfrontations Confrontation[] @relation("ConfrontationAwayTeam")
+
+  @@index([tenantId, clubId])
+  @@index([tenantId, category, status])
+  @@index([coachAssociateId])
+  @@index([assistantAssociateId])
+}
+
+model Competition {
+  id        String            @id @default(cuid())
+  tenantId  String?
+  name      String
+  seasonId  String?
+  type      CompetitionType   @default(LEAGUE)
+  format    CompetitionFormat @default(PONTOS_CORRIDOS)
+  startDate DateTime?
+  endDate   DateTime?
+  status    CompetitionStatus @default(DRAFT)
+  rules     Json?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  season Season? @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  teams CompetitionTeam[]
+  games Game[]
+  confrontations Confrontation[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, seasonId])
+}
+
+model CompetitionTeam {
+  id             String                @id @default(cuid())
+  tenantId       String?
+  competitionId  String
+  teamId         String?
+  clubId         String?
+  groupName      String?
+  points         Int                   @default(0)
+  wins           Int                   @default(0)
+  draws          Int                   @default(0)
+  losses         Int                   @default(0)
+  goalsFor       Int                   @default(0)
+  goalsAgainst   Int                   @default(0)
+  goalDifference Int                   @default(0)
+  status         CompetitionTeamStatus @default(ACTIVE)
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  team Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  club Club? @relation(fields: [clubId], references: [id], onDelete: SetNull)
+
+  @@unique([competitionId, teamId])
+  @@index([tenantId, competitionId])
+  @@index([tenantId, points])
+}
+
+model Confrontation {
+  id            String              @id @default(cuid())
+  tenantId      String?
+  homeClubId    String
+  awayClubId    String
+  homeTeamId    String?
+  awayTeamId    String?
+  competitionId String?
+  seasonId      String?
+  type          ConfrontationType   @default(FRIENDLY)
+  status        ConfrontationStatus @default(SCHEDULED)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  homeClub Club @relation("ConfrontationHomeClub", fields: [homeClubId], references: [id], onDelete: Restrict)
+  awayClub Club @relation("ConfrontationAwayClub", fields: [awayClubId], references: [id], onDelete: Restrict)
+  homeTeam Team? @relation("ConfrontationHomeTeam", fields: [homeTeamId], references: [id], onDelete: SetNull)
+  awayTeam Team? @relation("ConfrontationAwayTeam", fields: [awayTeamId], references: [id], onDelete: SetNull)
+  competition Competition? @relation(fields: [competitionId], references: [id], onDelete: SetNull)
+  season Season? @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, homeClubId, awayClubId])
+  @@index([tenantId, competitionId])
+}
+
+model Game {
+  id                String    @id @default(cuid())
+  tenantId          String?
+  type              GameType
+  date              DateTime
+  location          String
+  championship      String?
+  gameMode          GameMode  @default(INTERNAL_SPLIT)
+  homeClubId        String?
+  awayClubId        String?
+  fieldId           String?
+  homeTeamId        String?
+  awayTeamId        String?
+  competitionId     String?
+  round             String?
+  matchNumber       Int?
+  isOfficial        Boolean   @default(false)
+  homeScore         Int?
+  awayScore         Int?
+  refereeName       String?
+  assistantNames    String?
+  assistantOneName  String?
+  assistantTwoName  String?
+  fourthOfficialName String?
+  reserveAssistantName String?
+  varName           String?
+  avarName          String?
+  delegateName      String?
+  note              String?
+  gameValueCents    Int       @default(0)
+  seasonId          String?
+  redTeamName       String?
+  whiteTeamName     String?
+  redUniformColor   String?
+  whiteUniformColor String?
+  redUniformImageUrl   String?
+  whiteUniformImageUrl String?
+  redCrestUrl       String?
+  whiteCrestUrl     String?
+  redFormation      String?
+  whiteFormation    String?
+  status            GameStatus @default(SCHEDULED)
+  halfDurationMinutes Int      @default(45)
+  breakDurationMinutes Int     @default(15)
+  startedAt         DateTime?
+  pausedAt          DateTime?
+  elapsedSeconds    Int        @default(0)
+  finishedAt        DateTime?
+  redScore          Int?
+  whiteScore        Int?
+  winnerSide        TeamSide?
+  isDraw            Boolean   @default(false)
+  tacticalPlans     Json?
+  draftAttempts     Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant        OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  season        Season?             @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  homeClub      Club?               @relation("GameHomeClub", fields: [homeClubId], references: [id], onDelete: SetNull)
+  awayClub      Club?               @relation("GameAwayClub", fields: [awayClubId], references: [id], onDelete: SetNull)
+  field         Field?              @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  homeTeam      Team?               @relation("GameHomeTeam", fields: [homeTeamId], references: [id], onDelete: SetNull)
+  awayTeam      Team?               @relation("GameAwayTeam", fields: [awayTeamId], references: [id], onDelete: SetNull)
+  competition   Competition?        @relation(fields: [competitionId], references: [id], onDelete: SetNull)
+  callUps       GameCallUp[]
+  lineups       GameLineup[]
+  events        GameEvent[]
+  substitutions GameSubstitution[]
+  cards         CardRecord[]
+  confrontation ConfrontationMatch?
+  mediaAssets   MediaAsset[]
+  draftHistory  LineupDraftAttempt[]
+
+  @@index([type, date])
+  @@index([tenantId, type, date])
+  @@index([tenantId, fieldId])
+  @@index([tenantId, gameMode, date])
+  @@index([tenantId, homeClubId, awayClubId])
+  @@index([tenantId, competitionId])
+  @@index([seasonId])
+}
+
+model GameCallUp {
+  id           String       @id @default(cuid())
+  tenantId     String?
+  gameId       String
+  athleteId    String
+  status       CallUpStatus @default(CALLED)
+  confirmedAt  DateTime?
+  responseNote String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Restrict)
+
+  @@unique([gameId, athleteId])
+  @@index([tenantId, gameId, status])
+  @@index([tenantId, athleteId, status])
+}
+
+model GameLineup {
+  id           String     @id @default(cuid())
+  tenantId     String?
+  gameId       String
+  athleteId    String
+  side         TeamSide
+  role         LineupRole
+  presence     Boolean    @default(false)
+  confirmedAt  DateTime?
+  arrivalStatus String?
+  confirmationNote String?
+  jerseyNumber Int?
+  tacticalSlot Int?
+  shirtName    String?
+  createdAt    DateTime   @default(now())
+
+  tenant  OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  game    Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Restrict)
+
+  @@unique([gameId, athleteId])
+  @@index([gameId, side])
+  @@index([gameId, side, tacticalSlot])
+  @@index([tenantId, gameId, side])
+}
+
+model GameEvent {
+  id        String    @id @default(cuid())
+  tenantId  String?
+  gameId    String
+  athleteId String
+  type      EventType
+  minute    Int?
+  note      String?
+  side      TeamSide?
+  createdAt DateTime  @default(now())
+
+  tenant  OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  game    Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Restrict)
+
+  @@index([gameId, type])
+  @@index([athleteId, type])
+  @@index([tenantId, gameId, type])
+}
+
+model GameSubstitution {
+  id           String   @id @default(cuid())
+  tenantId     String?
+  gameId       String
+  athleteOutId String
+  athleteInId  String
+  side         TeamSide?
+  minute       Int?
+  note         String?
+  createdAt    DateTime @default(now())
+
+  tenant     OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  game       Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  athleteOut Athlete @relation("SubstitutionOut", fields: [athleteOutId], references: [id], onDelete: Restrict)
+  athleteIn  Athlete @relation("SubstitutionIn", fields: [athleteInId], references: [id], onDelete: Restrict)
+
+  @@index([gameId, minute])
+  @@index([athleteOutId])
+  @@index([athleteInId])
+  @@index([tenantId, gameId, minute])
+}
+
+model CardRecord {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  athleteId String
+  gameId    String
+  seasonId  String?
+  type      CardType
+  reason    String?
+  minute    Int?
+  referee   String?
+  teamName  String?
+  note      String?
+  cardDate  DateTime
+  createdAt DateTime @default(now())
+
+  tenant  OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Restrict)
+  game    Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  season  Season? @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+
+  @@index([athleteId, type])
+  @@index([seasonId, type])
+  @@index([tenantId, athleteId, type])
+}
+
+model Suspension {
+  id             String           @id @default(cuid())
+  tenantId       String?
+  athleteId      String
+  reason         String
+  origin         SuspensionOrigin
+  matchesToServe Int              @default(1)
+  startsAt       DateTime
+  endsAt         DateTime?
+  active         Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Restrict)
+
+  @@index([athleteId, active])
+  @@index([tenantId, athleteId, active])
+}
+
+model ConfrontationMatch {
+  id         String    @id @default(cuid())
+  tenantId   String?
+  gameId     String    @unique
+  seasonId   String?
+  redScore   Int
+  whiteScore Int
+  winnerSide TeamSide?
+  isDraw     Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+
+  tenant      OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  game        Game         @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  season      Season?      @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  mediaAssets MediaAsset[]
+
+  @@index([seasonId])
+  @@index([tenantId, seasonId])
+}
+
+model FinancialEntry {
+  id                   String               @id @default(cuid())
+  tenantId             String?
+  type                 FinancialEntryType
+  category             FinancialCategory
+  description          String
+  amountCents          Int
+  competenceMonth      Int
+  competenceYear       Int
+  dueDate              DateTime?
+  paidAt               DateTime?
+  status               FinancialEntryStatus @default(PENDING)
+  associateId          String?
+  goalkeeperContractId String?
+  receiptUrl           String?
+  costCenter           String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  tenant             OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  associate          Associate?          @relation(fields: [associateId], references: [id], onDelete: SetNull)
+  goalkeeperContract GoalkeeperContract? @relation(fields: [goalkeeperContractId], references: [id], onDelete: SetNull)
+
+  @@index([type, category])
+  @@index([competenceYear, competenceMonth])
+  @@index([status, dueDate])
+  @@index([tenantId, competenceYear, competenceMonth])
+}
+
+model MediaAsset {
+  id              String    @id @default(cuid())
+  tenantId        String?
+  type            MediaType
+  url             String
+  title           String?
+  year            Int?
+  athleteId       String?
+  gameId          String?
+  confrontationId String?
+  uploadedById    String?
+  createdAt       DateTime  @default(now())
+
+  tenant        OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  athlete       Athlete?            @relation(fields: [athleteId], references: [id], onDelete: SetNull)
+  game          Game?               @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  confrontation ConfrontationMatch? @relation(fields: [confrontationId], references: [id], onDelete: SetNull)
+  uploadedBy    User?               @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([type, year])
+  @@index([athleteId])
+  @@index([gameId])
+  @@index([tenantId, type, year])
+}
+
+model ArchiveItem {
+  id                 String            @id @default(cuid())
+  tenantId           String?
+  type               ArchiveItemType
+  status             ArchiveItemStatus @default(PUBLISHED)
+  title              String
+  subtitle           String?
+  description        String?
+  year               Int?
+  occurredAt         DateTime?
+  category           String?
+  tags               String[]          @default([])
+  coverImageUrl      String?
+  externalUrl        String?
+  location           String?
+  periodLabel        String?
+  personName         String?
+  personRole         String?
+  competition        String?
+  resultLabel        String?
+  scoreLabel         String?
+  assetCode          String?
+  assetCondition     String?
+  documentNumber     String?
+  visibility         String            @default("PUBLIC")
+  linkedEntityType   String?
+  linkedEntityId     String?
+  metadata           Json?
+  createdById        String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  tenant      OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy   User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  attachments ArchiveAttachment[]
+
+  @@index([type, year])
+  @@index([status, createdAt])
+  @@index([tenantId, type, year])
+  @@index([tenantId, linkedEntityType, linkedEntityId])
+}
+
+model ArchiveAttachment {
+  id            String                @id @default(cuid())
+  tenantId      String?
+  archiveItemId String
+  type          ArchiveAttachmentType @default(OTHER)
+  title         String?
+  url           String
+  mimeType      String?
+  sizeBytes     Int?
+  createdAt     DateTime              @default(now())
+
+  archiveItem ArchiveItem @relation(fields: [archiveItemId], references: [id], onDelete: Cascade)
+
+  @@index([archiveItemId])
+  @@index([tenantId, type])
+}
+
+model MemorialCategory {
+  id              String          @id @default(cuid())
+  tenantId        String
+  slug            String
+  name            String
+  description     String?
+  archiveType     ArchiveItemType @default(DOCUMENT)
+  icon            String          @default("Archive")
+  enabled         Boolean         @default(true)
+  showInDashboard Boolean         @default(true)
+  sortOrder       Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  tenant OrganizationTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, enabled, sortOrder])
+}

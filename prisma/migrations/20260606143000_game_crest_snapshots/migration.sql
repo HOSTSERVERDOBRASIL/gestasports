@@ -1,0 +1,2 @@
+ALTER TABLE "Game" ADD COLUMN "redCrestUrl" TEXT;
+ALTER TABLE "Game" ADD COLUMN "whiteCrestUrl" TEXT;

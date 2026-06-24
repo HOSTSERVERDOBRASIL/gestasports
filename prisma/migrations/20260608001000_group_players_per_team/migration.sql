@@ -1,0 +1,1 @@
+ALTER TABLE "GroupSettings" ADD COLUMN "playersPerTeam" INTEGER NOT NULL DEFAULT 11;

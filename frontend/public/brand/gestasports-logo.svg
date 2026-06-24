@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 360" role="img" aria-labelledby="title desc">
+  <title id="title">GestaSports</title>
+  <desc id="desc">Marca GestaSports com monograma GS em azul e verde.</desc>
+  <defs>
+    <linearGradient id="blue" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#061b49"/>
+      <stop offset="1" stop-color="#0b2f6f"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#7ac943"/>
+      <stop offset="1" stop-color="#43a629"/>
+    </linearGradient>
+  </defs>
+  <rect width="860" height="360" rx="28" fill="#fff"/>
+  <path d="M301 93c37-41 109-50 160-15 31 21 52 54 58 92" fill="none" stroke="url(#green)" stroke-width="12" stroke-linecap="round"/>
+  <path d="M294 106h147l-25 43H309c-37 0-63 27-65 63-2 35 24 58 60 58h56l16-32h-73l22-41h130l-55 112H284c-61 0-105-41-101-99 4-60 50-104 111-104Z" fill="url(#blue)"/>
+  <path d="M472 193c8-30 31-45 68-45h134l-31 42H534c-15 0-24 5-28 16-4 13 3 20 20 20h71c50 0 73 27 61 68-11 39-46 59-100 59H420l30-43h122c22 0 35-7 39-21 4-13-5-20-25-20h-69c-42 0-57-28-45-76Z" fill="url(#green)"/>
+  <path d="M462 305c60 29 130 8 168-45" fill="none" stroke="url(#blue)" stroke-width="13" stroke-linecap="round"/>
+  <circle cx="257" cy="283" r="45" fill="#fff" stroke="#08255b" stroke-width="7"/>
+  <path d="M257 241l23 17-9 27h-28l-9-27 23-17Zm-36 29 22-12m49 12-22-12m-19 27-15 21m42-21 15 21m-36-65v-18" fill="none" stroke="#08255b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="430" y="321" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="70" font-weight="900" letter-spacing="14" fill="#08255b">GESTA</text>
+  <text x="430" y="352" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="800" letter-spacing="18" fill="#55ad32">SPORTS</text>
+</svg>

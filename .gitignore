@@ -1,0 +1,35 @@
+# Dependencies
+node_modules
+frontend/node_modules
+
+# Build output
+dist
+frontend/dist
+coverage
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+!.env.production.example
+claude-bedrock.local.env
+
+# Editor / OS
+.vscode
+.DS_Store
+Thumbs.db
+
+# Runtime logs
+*.log
+
+# Local archives / backups / scratch artifacts (should never be committed)
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Stray binary/media dropped in the repo root
+/*.png
+/*.jpg
+/*.jpeg
+/*.pdf
