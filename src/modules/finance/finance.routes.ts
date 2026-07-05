@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import crypto from "node:crypto";
 import { z } from "zod";
 import {
   AssociateStatus,
@@ -18,7 +19,7 @@ import {
   type Prisma
 } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
-import { getTenantContext } from "../tenancy/tenant-context.js";
+import { getTenantContext, tenantContext } from "../tenancy/tenant-context.js";
 import { getCompetitionRanking, getConfrontationStats, getDisciplineRanking, getScorerRanking } from "../sports/sports.service.js";
 import { env } from "../../config/env.js";
 import { canUsePixAutoSettlement, createPixCheckout, createPixTxid, scheduleAutoSettlement, sendPaymentConfirmationEmail } from "../athletes/athlete-payment.service.js";
@@ -436,18 +437,36 @@ async function settleMonthlyFeeIncome(input: {
   });
 }
 
-function readWebhookSecret(request: { headers: Record<string, string | string[] | undefined> }) {
-  const directSecret = request.headers["x-gestasports-webhook-secret"];
-  if (typeof directSecret === "string" && directSecret.trim()) {
-    return directSecret.trim();
+function readWebhookHeader(headers: Record<string, string | string[] | undefined>, name: string) {
+  const value = headers[name];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function timingSafeEqualStrings(a: string, b: string) {
+  const bufA = Buffer.from(a, "utf8");
+  const bufB = Buffer.from(b, "utf8");
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+}
+
+const PIX_WEBHOOK_SIGNATURE_MAX_SKEW_SECONDS = 300;
+
+function verifyPixWebhookSignature(rawBody: Buffer, secret: string, signatureHeader: string | null, timestampHeader: string | null) {
+  if (!signatureHeader || !timestampHeader) {
+    return false;
   }
 
-  const authorization = request.headers.authorization;
-  if (typeof authorization === "string" && authorization.toLowerCase().startsWith("bearer ")) {
-    return authorization.slice("bearer ".length).trim();
+  const timestampSeconds = Number(timestampHeader);
+  if (!Number.isFinite(timestampSeconds)) {
+    return false;
   }
 
-  return null;
+  if (Math.abs(Date.now() / 1000 - timestampSeconds) > PIX_WEBHOOK_SIGNATURE_MAX_SKEW_SECONDS) {
+    return false;
+  }
+
+  const expectedSignature = crypto.createHmac("sha256", secret).update(`${timestampHeader}.`).update(rawBody).digest("hex");
+
+  return timingSafeEqualStrings(expectedSignature, signatureHeader.trim().toLowerCase());
 }
 
 function isPaidPixStatus(status: string) {
@@ -1656,76 +1675,111 @@ async function computeHistoricalArchive(fromYear: number, toYear: number) {
 }
 
 export async function financeRoutes(app: FastifyInstance) {
-  app.post("/finance/pix-webhook/:provider", async (request, reply) => {
-    // This route is public (called by the PIX provider), so it has no
-    // authenticated user. The tenant is resolved from the host/slug by the
-    // tenant plugin. Refuse to run without a resolved tenant, otherwise the
-    // Prisma queries below would run unscoped and could touch another tenant's
-    // payment settings/records.
-    if (!getTenantContext().tenantId) {
-      return reply.status(400).send({ message: "Tenant não identificado para o webhook Pix" });
-    }
-
-    const params = pixWebhookParamsSchema.parse(request.params);
-    const payload = pixWebhookSchema.parse(request.body);
-    const settings = await getPaymentSettings();
-
-    if (!settings.providerWebhookSecret) {
-      return reply.status(503).send({ message: "Webhook Pix não configurado" });
-    }
-
-    if (settings.paymentProvider !== "MANUAL_PIX" && settings.paymentProvider !== params.provider) {
-      return reply.status(400).send({ message: "Provedor Pix diferente da configuração ativa" });
-    }
-
-    const providedSecret = readWebhookSecret(request);
-    if (!providedSecret || providedSecret !== settings.providerWebhookSecret) {
-      return reply.status(401).send({ message: "Webhook Pix não autorizado" });
-    }
-
-    const normalizedPayload = normalizePixWebhookPayload(payload);
-    if (!normalizedPayload.status || !isPaidPixStatus(normalizedPayload.status)) {
-      return {
-        received: true,
-        settled: false,
-        message: "Evento recebido, mas status ainda não representa pagamento confirmado."
-      };
-    }
-
-    const reference = normalizedPayload.reference;
-    if (!reference) {
-      return reply.status(400).send({ message: "Informe paymentId, externalReference ou txid no webhook Pix" });
-    }
-
-    const payment = await findPaymentFromPixReference(reference);
-    if (!payment) {
-      return reply.status(404).send({ message: "Mensalidade não encontrada para a referência Pix" });
-    }
-
-    if (normalizedPayload.amountCents !== undefined && normalizedPayload.amountCents !== payment.amountCents) {
-      return reply.status(409).send({ message: "Valor do Pix não confere com a mensalidade" });
-    }
-
-    const settled = await settlePaymentFromPixWebhook({
-      paymentId: payment.id,
-      paidAt: normalizedPayload.paidAt ? new Date(normalizedPayload.paidAt) : new Date(),
-      provider: params.provider,
-      rawPayload: payload
+  // Isolated encapsulation context: only this route needs the raw request body
+  // (to verify the HMAC signature), so the buffer content-type parser is scoped
+  // here and doesn't affect JSON parsing for the rest of financeRoutes.
+  await app.register(async (webhookApp) => {
+    webhookApp.addContentTypeParser("application/json", { parseAs: "buffer" }, (_request, body, done) => {
+      done(null, body);
     });
 
-    if (!settled) {
-      return reply.status(404).send({ message: "Mensalidade não encontrada" });
-    }
-
-    return {
-      received: true,
-      settled: settled.changed,
-      payment: {
-        id: settled.payment.id,
-        status: settled.payment.status,
-        paidAt: settled.payment.paidAt?.toISOString() ?? null
+    webhookApp.post(
+      "/finance/pix-webhook/:provider",
+      {
+        // Fastify's AsyncLocalStorage-based tenant context (set by tenant.plugin.ts's
+        // onRequest hook) does not survive body parsing on routes with no
+        // authenticate/authorize preHandler to re-enter it afterwards (that preHandler is
+        // what keeps it alive for every other authenticated route). This route is public,
+        // so we re-enter it explicitly here, right before the handler, from the plain
+        // `request.tenant` property (set by the same onRequest hook and unaffected by the
+        // AsyncLocalStorage issue since it's a normal object property).
+        preHandler: async (request) => {
+          tenantContext.enterWith({ tenantId: request.tenant?.id ?? null, bypassTenant: false });
+        }
+      },
+      async (request, reply) => {
+      // This route is public (called by the PIX provider), so it has no
+      // authenticated user. The tenant is resolved from the host/slug by the
+      // tenant plugin. Refuse to run without a resolved tenant, otherwise the
+      // Prisma queries below would run unscoped and could touch another tenant's
+      // payment settings/records.
+      if (!getTenantContext().tenantId) {
+        return reply.status(400).send({ message: "Tenant não identificado para o webhook Pix" });
       }
-    };
+
+      const params = pixWebhookParamsSchema.parse(request.params);
+      const rawBody = request.body as Buffer;
+
+      let parsedBody: unknown;
+      try {
+        parsedBody = rawBody.length ? JSON.parse(rawBody.toString("utf8")) : {};
+      } catch {
+        return reply.status(400).send({ message: "JSON inválido no webhook Pix" });
+      }
+
+      const payload = pixWebhookSchema.parse(parsedBody);
+      const settings = await getPaymentSettings();
+
+      if (!settings.providerWebhookSecret) {
+        return reply.status(503).send({ message: "Webhook Pix não configurado" });
+      }
+
+      if (settings.paymentProvider !== "MANUAL_PIX" && settings.paymentProvider !== params.provider) {
+        return reply.status(400).send({ message: "Provedor Pix diferente da configuração ativa" });
+      }
+
+      const signatureHeader = readWebhookHeader(request.headers, "x-gestasports-webhook-signature");
+      const timestampHeader = readWebhookHeader(request.headers, "x-gestasports-webhook-timestamp");
+
+      if (!verifyPixWebhookSignature(rawBody, settings.providerWebhookSecret, signatureHeader, timestampHeader)) {
+        return reply.status(401).send({ message: "Assinatura do webhook Pix inválida ou expirada" });
+      }
+
+      const normalizedPayload = normalizePixWebhookPayload(payload);
+      if (!normalizedPayload.status || !isPaidPixStatus(normalizedPayload.status)) {
+        return {
+          received: true,
+          settled: false,
+          message: "Evento recebido, mas status ainda não representa pagamento confirmado."
+        };
+      }
+
+      const reference = normalizedPayload.reference;
+      if (!reference) {
+        return reply.status(400).send({ message: "Informe paymentId, externalReference ou txid no webhook Pix" });
+      }
+
+      const payment = await findPaymentFromPixReference(reference);
+      if (!payment) {
+        return reply.status(404).send({ message: "Mensalidade não encontrada para a referência Pix" });
+      }
+
+      if (normalizedPayload.amountCents !== undefined && normalizedPayload.amountCents !== payment.amountCents) {
+        return reply.status(409).send({ message: "Valor do Pix não confere com a mensalidade" });
+      }
+
+      const settled = await settlePaymentFromPixWebhook({
+        paymentId: payment.id,
+        paidAt: normalizedPayload.paidAt ? new Date(normalizedPayload.paidAt) : new Date(),
+        provider: params.provider,
+        rawPayload: payload
+      });
+
+      if (!settled) {
+        return reply.status(404).send({ message: "Mensalidade não encontrada" });
+      }
+
+      return {
+        received: true,
+        settled: settled.changed,
+        payment: {
+          id: settled.payment.id,
+          status: settled.payment.status,
+          paidAt: settled.payment.paidAt?.toISOString() ?? null
+        }
+      };
+      }
+    );
   });
 
   app.get("/finance/pix-settings", { preHandler: app.authorize(["ADMIN", "FINANCIAL"]) }, async () => {

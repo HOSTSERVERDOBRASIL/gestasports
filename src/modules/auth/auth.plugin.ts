@@ -3,7 +3,7 @@ import fastifyJwt from "@fastify/jwt";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { TenantModuleCode, type UserRole } from "@prisma/client";
 import { env } from "../../config/env.js";
-import { setTenantBypass, setTenantContextTenantId } from "../tenancy/tenant-context.js";
+import { tenantContext } from "../tenancy/tenant-context.js";
 import { getEnabledTenantModuleCodes } from "../tenancy/tenant-modules.js";
 
 type JwtUser = {
@@ -25,16 +25,24 @@ function effectiveRolesFor(user: JwtUser) {
   return user.roles && user.roles.length > 0 ? user.roles : [user.role];
 }
 
-function markTenantBypassForSuperadmin(user: JwtUser) {
-  setTenantBypass(effectiveRolesFor(user).includes("SUPERADMIN"));
-}
-
 // request.tenant comes from the (attacker-controllable) Host/X-Tenant-Slug header and must
 // never be trusted for data scoping once we have a verified JWT — always scope by the token's tenantId.
-function applyAuthenticatedTenant(request: FastifyRequest, user: JwtUser) {
-  if (user.tenantId) {
-    setTenantContextTenantId(user.tenantId);
+//
+// This must run as its own preHandler, separate from the one that calls request.jwtVerify(),
+// and must use enterWith (never a mutate-existing-store setter). Confirmed empirically: the
+// AsyncLocalStorage store entered by tenant.plugin.ts's onRequest hook does not survive a
+// request.jwtVerify() call — reads taken later in that SAME hook function still show the
+// right value, but it never reaches the route handler. Splitting jwtVerify() and this call
+// into two separate preHandler hooks (see authPlugin below) avoids whatever internally
+// resets continuity, and reliably carries the context into the handler.
+async function applyAuthenticatedTenant(request: FastifyRequest) {
+  const user = request.user as JwtUser | undefined;
+  if (!user) {
+    return;
   }
+
+  const bypassTenant = effectiveRolesFor(user).includes("SUPERADMIN");
+  tenantContext.enterWith({ tenantId: user.tenantId, bypassTenant });
 }
 
 // Reject requests where the Host-resolved tenant differs from the token's own tenant, so a
@@ -166,45 +174,18 @@ export const authPlugin = fp(async (app) => {
     sign: { expiresIn: "12h" }
   });
 
-  app.decorate("authenticate", async (request: FastifyRequest, reply: FastifyReply) => {
+  async function verifyAndCheckAccess(roles: UserRole[] | null, request: FastifyRequest, reply: FastifyReply) {
     let user: JwtUser;
     try {
       await request.jwtVerify();
       user = request.user as JwtUser;
-      markTenantBypassForSuperadmin(user);
-      applyAuthenticatedTenant(request, user);
     } catch {
-      return reply.status(401).send({ message: "Não autorizado" });
-    }
-
-    if (isTenantMismatched(request, user)) {
-      return reply.status(403).send({ message: "Token não pertence a este ambiente" });
-    }
-
-    if (isTenantBlocked(request, user)) {
-      return reply.status(402).send(blockedTenantPayload(request));
-    }
-
-    if (!(await ensureModuleAccess(request, reply, user))) {
+      reply.status(401).send({ message: "Não autorizado" });
       return;
     }
-  });
 
-  app.decorate("authorize", (roles: UserRole[]) => {
-    return async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        await request.jwtVerify();
-        const user = request.user as JwtUser;
-        markTenantBypassForSuperadmin(user);
-        applyAuthenticatedTenant(request, user);
-      } catch {
-        reply.status(401).send({ message: "Não autorizado" });
-        return;
-      }
-
-      const user = request.user as JwtUser;
+    if (roles) {
       const effectiveRoles = effectiveRolesFor(user);
-
       const directlyAuthorized = roles.some((role) => effectiveRoles.includes(role));
       const sportsDirectorAuthorized =
         effectiveRoles.includes("SPORTS_DIRECTOR") &&
@@ -215,21 +196,35 @@ export const authPlugin = fp(async (app) => {
         reply.status(403).send({ message: "Sem permissão para esta ação" });
         return;
       }
+    }
 
-      if (isTenantMismatched(request, user)) {
-        reply.status(403).send({ message: "Token não pertence a este ambiente" });
-        return;
-      }
+    if (isTenantMismatched(request, user)) {
+      reply.status(403).send({ message: "Token não pertence a este ambiente" });
+      return;
+    }
 
-      if (isTenantBlocked(request, user)) {
-        reply.status(402).send(blockedTenantPayload(request));
-        return;
-      }
+    if (isTenantBlocked(request, user)) {
+      reply.status(402).send(blockedTenantPayload(request));
+      return;
+    }
 
-      if (!(await ensureModuleAccess(request, reply, user))) {
-        return;
-      }
-    };
-  });
+    if (!(await ensureModuleAccess(request, reply, user))) {
+      return;
+    }
+  }
+
+  // Each of these is an array of two preHandlers, not a single function — see the comment on
+  // applyAuthenticatedTenant for why the tenant-context step must run as its own hook,
+  // separate from the one that calls request.jwtVerify(). If either hook already sent a
+  // reply (auth/role/tenant failure), Fastify skips the remaining preHandlers automatically.
+  app.decorate("authenticate", [
+    async (request: FastifyRequest, reply: FastifyReply) => verifyAndCheckAccess(null, request, reply),
+    applyAuthenticatedTenant
+  ]);
+
+  app.decorate("authorize", (roles: UserRole[]) => [
+    async (request: FastifyRequest, reply: FastifyReply) => verifyAndCheckAccess(roles, request, reply),
+    applyAuthenticatedTenant
+  ]);
 });
 

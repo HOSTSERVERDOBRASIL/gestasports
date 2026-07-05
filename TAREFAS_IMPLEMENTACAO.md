@@ -35,15 +35,12 @@
     4. Retornar 429 com header `Retry-After` em segundos.
   - **Critério de aceite:** Após 10 tentativas de login seguidas, a 11ª retorna 429.
 
-- [ ] **T03 · Backend · ~4h** — Assinatura HMAC-SHA256 no webhook PIX
-  - **Arquivo:** `src/modules/finance/finance.routes.ts` (rota `POST /finance/pix-webhook/:provider`, ~linha 1659)
-  - **O que fazer:**
-    1. Ler o body bruto (raw) antes do parse JSON — configurar `addContentTypeParser` no Fastify se necessário.
-    2. Calcular `expectedSig = HMAC-SHA256(rawBody, process.env.PIX_WEBHOOK_SECRET)`.
-    3. Comparar com o header enviado pelo provider usando `crypto.timingSafeEqual()`.
-    4. Validar timestamp do header (rejeitar se `|now - ts| > 300s`).
-    5. Retornar 401 em qualquer falha de validação.
-  - **Critério de aceite:** Requisição com body adulterado retorna 401; body íntegro passa.
+- [x] **T03 · Backend · ~4h** — Assinatura HMAC-SHA256 no webhook PIX
+  - **Implementado:** raw body capturado via `addContentTypeParser` escopado num child context só para essa rota; `expectedSig = HMAC-SHA256(timestamp + "." + rawBody, settings.providerWebhookSecret)` (a chave é o segredo **por tenant** já existente em `PaymentSettings`, não uma env var global — o texto original pedia `process.env.PIX_WEBHOOK_SECRET`, mas isso seria incorreto num sistema multi-tenant onde cada clube configura seu próprio segredo). Headers: `X-Gestasports-Webhook-Signature` (hex) e `X-Gestasports-Webhook-Timestamp` (unix seconds). Comparação com `crypto.timingSafeEqual`; janela de replay de 300s; 401 em qualquer falha. Substituiu o antigo compare direto (`!==`, sem proteção a replay) por `readWebhookSecret`.
+  - **Critério de aceite:** verificado — assinatura válida sobre o body original passa; mesmo header de assinatura sobre body adulterado retorna 401; sem headers de assinatura retorna 401; assinatura válida com timestamp de 10min atrás retorna 401 (replay).
+  - **Achado crítico durante a implementação (fora do escopo original de T03, corrigido em conjunto):** ao testar esta rota, descobri que o contexto de tenant (`AsyncLocalStorage`, usado pela extensão automática do Prisma em `src/lib/prisma.ts` para popular `tenantId` em creates/updates) **não sobrevivia a `request.jwtVerify()`** — confirmado empiricamente: qualquer rota autenticada que faz uma mutação (`POST`/`PATCH`) sem passar `tenantId` explicitamente na query estava gravando registros com `tenantId: null` (reproduzido com `POST /finance/entries`). Isso é mais grave que T01: não é um vazamento entre tenants, é **perda de dado** — o registro criado nunca aparece em nenhuma listagem porque não pertence a tenant nenhum, e uma auditoria de "linhas com tenantId nulo" (o script `npm run tenant:audit` já existe no projeto, sinal de que esse sintoma já tinha sido notado antes sem a causa raiz ser encontrada) encontraria esses registros.
+    - **Causa raiz:** `auth.plugin.ts` chamava `request.jwtVerify()` e, na mesma função `preHandler`, tentava restabelecer o contexto de tenant logo em seguida. Comprovado por teste direto que isso quebra a propagação para a fase seguinte do Fastify (handler), mesmo a leitura imediata after o `enterWith()` mostrando o valor certo dentro da própria função.
+    - **Correção:** `authenticate`/`authorize` agora são um **array de dois preHandlers** — o primeiro faz `jwtVerify()` + checagens de role/tenant/módulo; um segundo, separado, só então chama `tenantContext.enterWith(...)`. Verificado: `POST /finance/entries` agora grava `tenantId` correto; T01 (bloqueio de spoof de tenant) e bypass de SUPERADMIN continuam funcionando.
 
 ---
 
