@@ -1829,7 +1829,9 @@ export async function financeRoutes(app: FastifyInstance) {
       paidAt: payment.paidAt?.toISOString() ?? null,
       status: payment.status,
       lateFeeAppliedCents: payment.lateFeeAppliedCents,
-      lateFeeApplied: payment.lateFeeAppliedCents > 0
+      lateFeeApplied: payment.lateFeeAppliedCents > 0,
+      isProrataMonth: payment.isProrata,
+      prorataFee: payment.isProrata ? payment.amountCents : null
     }));
   });
 

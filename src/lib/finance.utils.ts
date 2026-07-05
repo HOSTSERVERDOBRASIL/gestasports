@@ -5,6 +5,17 @@ export function dueDateForCompetence(month: number, year: number, dueDay: number
   return new Date(Date.UTC(year, month - 1, Math.min(Math.max(dueDay, 1), 28)));
 }
 
+/** Pro-rated fee for the first month of membership, based on days remaining from joinDate through month end. */
+export function prorataFeeForJoinDate(joinDate: Date, monthlyFeeCents: number) {
+  const year = joinDate.getUTCFullYear();
+  const month = joinDate.getUTCMonth() + 1;
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const remainingDays = daysInMonth - joinDate.getUTCDate() + 1;
+  const prorataFeeCents = Math.round((monthlyFeeCents * remainingDays) / daysInMonth);
+
+  return { month, year, daysInMonth, remainingDays, prorataFeeCents, isProrata: remainingDays < daysInMonth };
+}
+
 export async function settleMonthlyFeeIncome(input: {
   associateId: string;
   associateName: string;

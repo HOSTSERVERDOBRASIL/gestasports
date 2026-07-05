@@ -1,14 +1,17 @@
 import type { FastifyInstance } from "fastify";
-import { UserRole } from "@prisma/client";
+import { PaymentStatus, UserRole } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
+import { dueDateForCompetence, prorataFeeForJoinDate } from "../../lib/finance.utils.js";
+import { getPaymentSettings } from "../finance/finance.routes.js";
 
 const createAssociateSchema = z.object({
   name: z.string().min(2),
   email: z.string().email().optional(),
   phone: z.string().min(8).optional(),
   monthlyFeeCents: z.number().int().positive().default(6000),
-  boardRoleId: z.string().min(1).optional().or(z.literal(""))
+  boardRoleId: z.string().min(1).optional().or(z.literal("")),
+  joinDate: z.string().date().optional()
 });
 
 const associateParamsSchema = z.object({
@@ -112,6 +115,7 @@ export async function associateRoutes(app: FastifyInstance) {
 
   app.post("/associates", { preHandler: app.authorize(["ADMIN", "FINANCIAL"]) }, async (request, reply) => {
     const payload = createAssociateSchema.parse(request.body);
+    const joinDate = payload.joinDate ? new Date(`${payload.joinDate}T00:00:00.000Z`) : new Date();
 
     const associate = await prisma.associate.create({
       data: {
@@ -119,11 +123,26 @@ export async function associateRoutes(app: FastifyInstance) {
         monthlyFeeCents: payload.monthlyFeeCents,
         email: payload.email || null,
         phone: payload.phone || null,
-        boardRoleId: payload.boardRoleId || (await defaultBoardRoleId())
+        boardRoleId: payload.boardRoleId || (await defaultBoardRoleId()),
+        joinedAt: joinDate
       }
     });
 
-    return reply.code(201).send(associate);
+    const prorata = prorataFeeForJoinDate(joinDate, payload.monthlyFeeCents);
+    const { monthlyDueDay } = await getPaymentSettings();
+    await prisma.payment.create({
+      data: {
+        associateId: associate.id,
+        month: prorata.month,
+        year: prorata.year,
+        amountCents: prorata.prorataFeeCents,
+        dueDate: dueDateForCompetence(prorata.month, prorata.year, monthlyDueDay),
+        status: PaymentStatus.PENDING,
+        isProrata: prorata.isProrata
+      }
+    });
+
+    return reply.code(201).send({ ...associate, prorataApplied: prorata.isProrata, prorataFeeCents: prorata.prorataFeeCents });
   });
 
   app.patch("/associates/:id", { preHandler: app.authorize(["ADMIN", "FINANCIAL"]) }, async (request) => {

@@ -66,7 +66,7 @@
   - **Migração:** `add_payment_refund` — `PaymentStatus.REFUNDED`, `FinancialCategory.REFUND`, `Payment.refundedAt`/`refundReason`.
   - **Critério de aceite:** verificado end-to-end — estornar um pagamento `LATE` (ainda não pago) retorna 409; após `manual-settle` (PAID), o estorno cria o `FinancialEntry` de despesa, reverte o associado de `ACTIVE` para `LATE`, e uma segunda tentativa de estorno retorna 409.
 
-- [ ] **T07 · Backend · ~8h** — Pro-rata para associado que entra no meio do mês
+- [x] **T07 · Backend · ~8h** — Pro-rata para associado que entra no meio do mês
   - **Arquivo:** `src/modules/finance/finance.routes.ts` (função `ensureMonthlyPaymentsForPeriod`) e `src/modules/associates/associates.routes.ts` (rota de criação de associado)
   - **Lógica:**
     1. Ao criar associado, se `joinDate` (data de ingresso) está no meio do mês atual, calcular:
@@ -75,7 +75,8 @@
     2. Primeiro `Payment` gerado para este associado no mês de ingresso usa `amountCents = prorataFee`.
     3. Campo `prorataApplied: boolean` na resposta de criação do associado.
     4. `GET /finance/monthly-fees` retorna `isProrataMonth: boolean` e `prorataFee` por item.
-  - **Critério de aceite:** Associado criado no dia 15 de um mês de 30 dias recebe mensalidade com 50% do valor cheio.
+  - **Implementado:** `createAssociateSchema` aceita `joinDate` opcional (default hoje); `prorataFeeForJoinDate` (novo, em `finance.utils.ts`) calcula o pro-rata a partir do mês/ano da própria `joinDate` (não do "mês atual" do servidor — assim funciona corretamente mesmo com data de ingresso retroativa/futura). `POST /associates` já cria o primeiro `Payment` daquele período com o valor pro-rata (em vez de esperar `ensureMonthlyPaymentsForPeriod`, que detecta o registro existente e não duplica). Migração `add_payment_prorata` adiciona `Payment.isProrata Boolean` para sinalizar isso de forma inequívoca no `GET /finance/monthly-fees` (em vez de inferir por `amountCents < monthlyFeeCents`, que quebraria com multa por atraso somada).
+  - **Critério de aceite:** verificado — associado criado com `joinDate: "2026-06-15"` (junho/2026, 30 dias) e `monthlyFeeCents: 6000` retorna `prorataApplied: true`, `prorataFeeCents: 3200` (16 dias restantes ÷ 30); `GET /finance/monthly-fees` retorna `isProrataMonth: true` para esse pagamento.
 
 - [ ] **T08 · Backend · ~10h** — Billing real para atleta convidado (guest)
   - **Arquivo:** `src/modules/finance/finance.routes.ts` (novas rotas)

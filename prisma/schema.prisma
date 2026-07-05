@@ -963,6 +963,7 @@ model Payment {
   lateFeeAppliedCents Int           @default(0)
   refundedAt          DateTime?
   refundReason        String?
+  isProrata           Boolean       @default(false)
   createdAt           DateTime      @default(now())
 
   tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
