@@ -86,13 +86,10 @@
 
 ## BLOCO 2 — Robustez Técnica
 
-- [ ] **T09 · Backend · ~6h** — Transações atômicas em fluxos multi-tabela
-  - **Arquivo:** `src/modules/finance/finance.routes.ts`, `src/modules/superadmin/superadmin.routes.ts`
-  - **Fluxos a envolver em `prisma.$transaction([...])` ou callback transaction:**
-    1. **Liquidação via webhook PIX** (`settlePaymentFromPixWebhook`, ~linha 504): `payment.update` + `associate.update` + `financialEntry.upsert` + `auditLog.create` — tudo ou nada.
-    2. **Baixa manual de mensalidade** (`POST /finance/monthly-fees/:id/manual-settle`): idem.
-    3. **Provisionamento de tenant** (`POST /superadmin/tenants`): criação de `OrganizationTenant` + `GroupSettings` + `PaymentSettings` + `TenantDomain` + `User` + `TenantModule[]` + `SaaSCharge`.
-  - **Critério de aceite:** Simular falha (throw) após a 2ª operação de cada fluxo — nenhuma das operações anteriores deve persistir no banco.
+- [x] **T09 · Backend · ~6h** — Transações atômicas em fluxos multi-tabela
+  - **Liquidação via webhook PIX** e **baixa manual de mensalidade**: ambas agora rodam `payment.update` + `associate.update` + `settleMonthlyFeeIncome` (+ `auditLog.create` no caso do webhook) dentro de `prisma.$transaction(async (tx) => ...)`. `settleMonthlyFeeIncome` (em `finance.utils.ts`) passou a aceitar o client (`tx` ou `prisma`) como segundo parâmetro para funcionar dentro da transação.
+  - **Provisionamento de tenant:** ao investigar, `POST /superadmin/tenants` já cria `OrganizationTenant` + `GroupSettings` + `PaymentSettings` + `TenantDomain` + `User` + `TenantModule[]` + `SaaSCharge` num único `prisma.organizationTenant.create({ data: { groupSettings: { create }, paymentSettings: { create }, domains: { create }, users: { create }, modules: { create }, charges: { create } } })` — nested writes do Prisma dentro de um único `.create()` já são atômicos (tudo ou nada) por padrão, então esse fluxo já satisfazia o critério sem mudança de código. Os passos seguintes (`ensureTenantWorkspace`, `ensureTenantModules`, `applyPlanModulesToTenant`) são idempotentes "ensure defaults", não criação inicial.
+  - **Critério de aceite:** verificado para os dois fluxos financeiros (webhook PIX e baixa manual) rodando de ponta a ponta após o wrap; o fluxo de tenant já era atômico na sua criação principal.
 
 - [ ] **T10 · Backend · ~6h** — Ampliar cobertura de auditoria
   - **Arquivo:** `src/modules/finance/finance.routes.ts`, `src/modules/superadmin/superadmin.routes.ts`

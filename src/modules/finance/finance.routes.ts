@@ -515,43 +515,50 @@ async function settlePaymentFromPixWebhook(input: {
     return { payment, changed: false };
   }
 
-  const updated = await prisma.payment.update({
-    where: { id: payment.id },
-    data: {
-      status: PaymentStatus.PAID,
-      paidAt: input.paidAt
-    },
-    include: { associate: true }
-  });
+  const updated = await prisma.$transaction(async (tx) => {
+    const updatedPayment = await tx.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: PaymentStatus.PAID,
+        paidAt: input.paidAt
+      },
+      include: { associate: true }
+    });
 
-  await prisma.associate.update({
-    where: { id: updated.associateId },
-    data: { status: AssociateStatus.ACTIVE }
-  });
+    await tx.associate.update({
+      where: { id: updatedPayment.associateId },
+      data: { status: AssociateStatus.ACTIVE }
+    });
 
-  await settleMonthlyFeeIncome({
-    associateId: updated.associateId,
-    associateName: updated.associate.name,
-    month: updated.month,
-    year: updated.year,
-    amountCents: updated.amountCents
-  });
+    await settleMonthlyFeeIncome(
+      {
+        associateId: updatedPayment.associateId,
+        associateName: updatedPayment.associate.name,
+        month: updatedPayment.month,
+        year: updatedPayment.year,
+        amountCents: updatedPayment.amountCents
+      },
+      tx
+    );
 
-  await prisma.auditLog.create({
-    data: {
-      tenantId: updated.tenantId,
-      action: "PIX_WEBHOOK_SETTLE",
-      method: "POST",
-      path: `/finance/pix-webhook/${input.provider}`,
-      statusCode: 200,
-      targetType: "Payment",
-      targetId: updated.id,
-      metadata: {
-        provider: input.provider,
-        paidAt: input.paidAt.toISOString(),
-        payload: input.rawPayload as Prisma.InputJsonValue
+    await tx.auditLog.create({
+      data: {
+        tenantId: updatedPayment.tenantId,
+        action: "PIX_WEBHOOK_SETTLE",
+        method: "POST",
+        path: `/finance/pix-webhook/${input.provider}`,
+        statusCode: 200,
+        targetType: "Payment",
+        targetId: updatedPayment.id,
+        metadata: {
+          provider: input.provider,
+          paidAt: input.paidAt.toISOString(),
+          payload: input.rawPayload as Prisma.InputJsonValue
+        }
       }
-    }
+    });
+
+    return updatedPayment;
   });
 
   if (updated.associate.email) {
@@ -1854,25 +1861,30 @@ export async function financeRoutes(app: FastifyInstance) {
     }
 
     if (payment.status !== PaymentStatus.PAID) {
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: PaymentStatus.PAID,
-          paidAt: new Date()
-        }
-      });
+      await prisma.$transaction(async (tx) => {
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: PaymentStatus.PAID,
+            paidAt: new Date()
+          }
+        });
 
-      await prisma.associate.update({
-        where: { id: payment.associateId },
-        data: { status: AssociateStatus.ACTIVE }
-      });
+        await tx.associate.update({
+          where: { id: payment.associateId },
+          data: { status: AssociateStatus.ACTIVE }
+        });
 
-      await settleMonthlyFeeIncome({
-        associateId: payment.associateId,
-        associateName: payment.associate.name,
-        month: payment.month,
-        year: payment.year,
-        amountCents: payment.amountCents
+        await settleMonthlyFeeIncome(
+          {
+            associateId: payment.associateId,
+            associateName: payment.associate.name,
+            month: payment.month,
+            year: payment.year,
+            amountCents: payment.amountCents
+          },
+          tx
+        );
       });
     }
 

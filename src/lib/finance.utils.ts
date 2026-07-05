@@ -16,15 +16,18 @@ export function prorataFeeForJoinDate(joinDate: Date, monthlyFeeCents: number) {
   return { month, year, daysInMonth, remainingDays, prorataFeeCents, isProrata: remainingDays < daysInMonth };
 }
 
-export async function settleMonthlyFeeIncome(input: {
-  associateId: string;
-  associateName: string;
-  month: number;
-  year: number;
-  amountCents: number;
-}) {
+export async function settleMonthlyFeeIncome(
+  input: {
+    associateId: string;
+    associateName: string;
+    month: number;
+    year: number;
+    amountCents: number;
+  },
+  client: Pick<typeof prisma, "financialEntry"> = prisma
+) {
   const description = `Mensalidade - ${input.associateName}`;
-  const existing = await prisma.financialEntry.findFirst({
+  const existing = await client.financialEntry.findFirst({
     where: {
       associateId: input.associateId,
       competenceMonth: input.month,
@@ -36,7 +39,7 @@ export async function settleMonthlyFeeIncome(input: {
   });
 
   if (existing) {
-    await prisma.financialEntry.update({
+    await client.financialEntry.update({
       where: { id: existing.id },
       data: {
         description,
@@ -48,7 +51,7 @@ export async function settleMonthlyFeeIncome(input: {
     return;
   }
 
-  await prisma.financialEntry.create({
+  await client.financialEntry.create({
     data: {
       type: FinancialEntryType.INCOME,
       category: FinancialCategory.MONTHLY_FEE,
