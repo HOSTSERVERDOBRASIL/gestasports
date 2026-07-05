@@ -19,6 +19,7 @@ import {
   type Prisma
 } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
+import { dueDateForCompetence, settleMonthlyFeeIncome } from "../../lib/finance.utils.js";
 import { getTenantContext, tenantContext } from "../tenancy/tenant-context.js";
 import { getCompetitionRanking, getConfrontationStats, getDisciplineRanking, getScorerRanking } from "../sports/sports.service.js";
 import { env } from "../../config/env.js";
@@ -301,10 +302,6 @@ function daysDiffFromToday(date: Date) {
   return Math.round((target - today) / 86_400_000);
 }
 
-function dueDateForCompetence(month: number, year: number, dueDay: number) {
-  return new Date(Date.UTC(year, month - 1, Math.min(Math.max(dueDay, 1), 28)));
-}
-
 const SECRET_MASK = "********";
 
 /**
@@ -330,7 +327,7 @@ function resolveSecret(incoming: string | null | undefined, stored: string | nul
   return incoming || null;
 }
 
-async function getPaymentSettings() {
+export async function getPaymentSettings() {
   const settings = await prisma.paymentSettings.findFirst();
   return {
     id: "main",
@@ -388,53 +385,6 @@ async function ensureMonthlyPaymentsForPeriod(month: number, year: number) {
 
   await updateLatePaymentsForPeriod(month, year);
   return { created, eligibleAssociates: associates.length, dueDay: settings?.monthlyDueDay };
-}
-
-async function settleMonthlyFeeIncome(input: {
-  associateId: string;
-  associateName: string;
-  month: number;
-  year: number;
-  amountCents: number;
-}) {
-  const description = `Mensalidade - ${input.associateName}`;
-  const existing = await prisma.financialEntry.findFirst({
-    where: {
-      associateId: input.associateId,
-      competenceMonth: input.month,
-      competenceYear: input.year,
-      category: FinancialCategory.MONTHLY_FEE,
-      type: FinancialEntryType.INCOME
-    },
-    orderBy: { createdAt: "desc" }
-  });
-
-  if (existing) {
-    await prisma.financialEntry.update({
-      where: { id: existing.id },
-      data: {
-        description,
-        amountCents: input.amountCents,
-        status: FinancialEntryStatus.PAID,
-        paidAt: new Date()
-      }
-    });
-    return;
-  }
-
-  await prisma.financialEntry.create({
-    data: {
-      type: FinancialEntryType.INCOME,
-      category: FinancialCategory.MONTHLY_FEE,
-      description,
-      amountCents: input.amountCents,
-      competenceMonth: input.month,
-      competenceYear: input.year,
-      status: FinancialEntryStatus.PAID,
-      paidAt: new Date(),
-      associateId: input.associateId
-    }
-  });
 }
 
 function readWebhookHeader(headers: Record<string, string | string[] | undefined>, name: string) {

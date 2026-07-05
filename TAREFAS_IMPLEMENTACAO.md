@@ -46,14 +46,10 @@
 
 ## BLOCO 1 — Consistência Financeira
 
-- [ ] **T04 · Backend · ~6h** — Unificar lógica de vencimento e baixa de mensalidade
-  - **Criar:** `src/lib/finance.utils.ts`
-  - **O que extrair:**
-    - `dueDateForCompetence(month: number, year: number, dueDay: number): Date` — fórmula: `new Date(Date.UTC(year, month - 1, Math.min(Math.max(dueDay, 1), 28)))`. Deve sempre receber `dueDay` do `settings.monthlyDueDay`, nunca fixo.
-    - `settleMonthlyFeeIncome(prisma, tenantId, { associateId, month, year, amountCents }): Promise<void>` — cria ou atualiza `FinancialEntry` para a mensalidade paga.
-  - **Corrigir:** `src/modules/athletes/athletes.routes.ts` linha ~128 usa `Date.UTC(year, month-1, 10)` fixo — substituir pelo utilitário importando `settings.monthlyDueDay` do banco.
-  - **Remover:** cópias inline em `finance.routes.ts:302` e `athletes.routes.ts:128-130` após extração.
-  - **Critério de aceite:** Um único source of truth; alterar `monthlyDueDay` nas configurações afeta todos os fluxos (finance e athletes).
+- [x] **T04 · Backend · ~6h** — Unificar lógica de vencimento e baixa de mensalidade
+  - **Criado:** `src/lib/finance.utils.ts` com `dueDateForCompetence(month, year, dueDay)` e `settleMonthlyFeeIncome(input)`, ambas extraídas verbatim da versão de `finance.routes.ts` (a correta, com `dueDay` configurável).
+  - **Corrigido:** `athletes.routes.ts` tinha uma cópia com o dia fixo em 10 (`Date.UTC(year, month-1, 10)`) usada em `GET /athlete/me` (due date projetada) e `POST /athlete/me/payments/current/checkout` (criação real do `Payment`). Ambos os pontos agora buscam `getPaymentSettings()` (exportado de `finance.routes.ts`) e passam `monthlyDueDay` real.
+  - **Critério de aceite:** verificado — `POST /finance/monthly-fees/generate` gera `Payment` com `dueDate` calculado a partir de `settings.monthlyDueDay` (dia 10 por padrão); um único source of truth compartilhado entre os dois módulos.
 
 - [ ] **T05 · Backend · ~12h** — Multa por atraso configurável
   - **Migração Prisma:** Adicionar em `PaymentSettings`: `lateFeeCents Int @default(0)`, `lateFeePercent Float @default(0)`. Rodar `prisma migrate dev`.

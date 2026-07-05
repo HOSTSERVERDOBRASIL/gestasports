@@ -6,14 +6,13 @@ import {
   AthletePosition,
   AthleteStatus,
   EventType,
-  FinancialCategory,
-  FinancialEntryStatus,
-  FinancialEntryType,
   PaymentStatus,
   Prisma
 } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
+import { dueDateForCompetence as dueDateForCompetenceWithDueDay, settleMonthlyFeeIncome } from "../../lib/finance.utils.js";
+import { getPaymentSettings } from "../finance/finance.routes.js";
 import { canUsePixAutoSettlement, createPixCheckout, createPixTxid, scheduleAutoSettlement, sendPaymentConfirmationEmail } from "./athlete-payment.service.js";
 import { env } from "../../config/env.js";
 import { canCreateSicoobPixCharge, createSicoobPixCheckout } from "../finance/sicoob-pix.service.js";
@@ -124,57 +123,6 @@ function gameLabel(game: {
   }
 
   return game.championship || "Jogo externo";
-}
-
-function dueDateForCompetence(month: number, year: number) {
-  return new Date(Date.UTC(year, month - 1, 10));
-}
-
-async function settleMonthlyFeeIncome(input: {
-  associateId: string;
-  associateName: string;
-  month: number;
-  year: number;
-  amountCents: number;
-}) {
-  const description = `Mensalidade - ${input.associateName}`;
-  const existing = await prisma.financialEntry.findFirst({
-    where: {
-      associateId: input.associateId,
-      competenceMonth: input.month,
-      competenceYear: input.year,
-      category: FinancialCategory.MONTHLY_FEE,
-      type: FinancialEntryType.INCOME
-    },
-    orderBy: { createdAt: "desc" }
-  });
-
-  if (existing) {
-    await prisma.financialEntry.update({
-      where: { id: existing.id },
-      data: {
-        description,
-        amountCents: input.amountCents,
-        status: FinancialEntryStatus.PAID,
-        paidAt: new Date()
-      }
-    });
-    return;
-  }
-
-  await prisma.financialEntry.create({
-    data: {
-      type: FinancialEntryType.INCOME,
-      category: FinancialCategory.MONTHLY_FEE,
-      description,
-      amountCents: input.amountCents,
-      competenceMonth: input.month,
-      competenceYear: input.year,
-      status: FinancialEntryStatus.PAID,
-      paidAt: new Date(),
-      associateId: input.associateId
-    }
-  });
 }
 
 function monthsBetween(from: Date, to: Date) {
@@ -1441,6 +1389,7 @@ export async function athleteRoutes(app: FastifyInstance) {
 
   app.get("/athlete/me", { preHandler: app.authorize(["ATHLETE"]) }, async (request, reply) => {
     const period = athleteMePeriodSchema.parse(request.query);
+    const paymentSettings = await getPaymentSettings();
 
     const user = await prisma.user.findUnique({
       where: { id: request.user.sub },
@@ -1963,7 +1912,7 @@ export async function athleteRoutes(app: FastifyInstance) {
             id: null,
             status: PaymentStatus.PENDING,
             amountCents: user.associate.monthlyFeeCents,
-            dueDate: dueDateForCompetence(period.month, period.year).toISOString(),
+            dueDate: dueDateForCompetenceWithDueDay(period.month, period.year, paymentSettings.monthlyDueDay).toISOString(),
             paidAt: null
           },
       recentPayments: recentPayments.map((payment) => ({
@@ -2150,13 +2099,14 @@ export async function athleteRoutes(app: FastifyInstance) {
     });
 
     if (!payment) {
+      const { monthlyDueDay } = await getPaymentSettings();
       payment = await prisma.payment.create({
         data: {
           associateId: associate.id,
           month: period.month,
           year: period.year,
           amountCents: associate.monthlyFeeCents,
-          dueDate: dueDateForCompetence(period.month, period.year),
+          dueDate: dueDateForCompetenceWithDueDay(period.month, period.year, monthlyDueDay),
           status: PaymentStatus.PENDING
         }
       });
