@@ -22,6 +22,7 @@ import {
   tenantPrimaryUrl
 } from "../tenancy/tenant-domain.js";
 import { defaultTenantModuleCodes, ensureTenantModules, tenantModuleCatalog } from "../tenancy/tenant-modules.js";
+import { createAuditLog } from "../audit/audit.service.js";
 import { provisionPhysicalTenantDatabase, type PhysicalTenantProvisioningResult } from "../tenancy/tenant-provisioning.js";
 
 const tenantParamsSchema = z.object({ tenantId: z.string().cuid() });
@@ -778,6 +779,21 @@ export async function superadminRoutes(app: FastifyInstance) {
       }
     });
 
+    if (payload.planId !== undefined || payload.status !== undefined) {
+      await createAuditLog(prisma, {
+        request,
+        action: "superadmin:tenant:update",
+        targetType: "OrganizationTenant",
+        targetId: params.tenantId,
+        tenantId: params.tenantId,
+        metadata: {
+          ...(payload.planId !== undefined ? { planId: payload.planId } : {}),
+          ...(payload.status !== undefined ? { status: payload.status } : {}),
+          ...(payload.suspendedReason !== undefined ? { suspendedReason: payload.suspendedReason } : {})
+        }
+      });
+    }
+
     return serializeTenant(params.tenantId);
   });
 
@@ -845,6 +861,15 @@ export async function superadminRoutes(app: FastifyInstance) {
 
     await applyPlanModulesToTenant(params.tenantId, Array.from(enabledSet));
 
+    await createAuditLog(prisma, {
+      request,
+      action: "superadmin:tenant:modules-update",
+      targetType: "OrganizationTenant",
+      targetId: params.tenantId,
+      tenantId: params.tenantId,
+      metadata: { enabledModules: Array.from(enabledSet) }
+    });
+
     return serializeTenant(params.tenantId);
   });
 
@@ -908,7 +933,7 @@ export async function superadminRoutes(app: FastifyInstance) {
     const params = tenantParamsSchema.parse(request.params);
     const payload = createChargeSchema.parse(request.body);
 
-    await prisma.saaSCharge.create({
+    const charge = await prisma.saaSCharge.create({
       data: {
         tenantId: params.tenantId,
         type: payload.type,
@@ -922,6 +947,15 @@ export async function superadminRoutes(app: FastifyInstance) {
       }
     });
 
+    await createAuditLog(prisma, {
+      request,
+      action: "superadmin:charge:create",
+      targetType: "SaaSCharge",
+      targetId: charge.id,
+      tenantId: params.tenantId,
+      metadata: { type: charge.type, amountCents: charge.amountCents }
+    });
+
     return reply.code(201).send(await serializeTenant(params.tenantId));
   });
 
@@ -933,10 +967,19 @@ export async function superadminRoutes(app: FastifyInstance) {
         status: SaaSChargeStatus.PAID,
         paidAt: new Date()
       },
-      select: { tenantId: true }
+      select: { tenantId: true, amountCents: true }
     });
 
     await maybeReactivateTenantAfterPayment(charge.tenantId);
+
+    await createAuditLog(prisma, {
+      request,
+      action: "superadmin:charge:settle",
+      targetType: "SaaSCharge",
+      targetId: params.chargeId,
+      tenantId: charge.tenantId,
+      metadata: { amountCents: charge.amountCents }
+    });
 
     return serializeTenant(charge.tenantId);
   });

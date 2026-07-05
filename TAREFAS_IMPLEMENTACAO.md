@@ -91,12 +91,11 @@
   - **Provisionamento de tenant:** ao investigar, `POST /superadmin/tenants` já cria `OrganizationTenant` + `GroupSettings` + `PaymentSettings` + `TenantDomain` + `User` + `TenantModule[]` + `SaaSCharge` num único `prisma.organizationTenant.create({ data: { groupSettings: { create }, paymentSettings: { create }, domains: { create }, users: { create }, modules: { create }, charges: { create } } })` — nested writes do Prisma dentro de um único `.create()` já são atômicos (tudo ou nada) por padrão, então esse fluxo já satisfazia o critério sem mudança de código. Os passos seguintes (`ensureTenantWorkspace`, `ensureTenantModules`, `applyPlanModulesToTenant`) são idempotentes "ensure defaults", não criação inicial.
   - **Critério de aceite:** verificado para os dois fluxos financeiros (webhook PIX e baixa manual) rodando de ponta a ponta após o wrap; o fluxo de tenant já era atômico na sua criação principal.
 
-- [ ] **T10 · Backend · ~6h** — Ampliar cobertura de auditoria
-  - **Arquivo:** `src/modules/finance/finance.routes.ts`, `src/modules/superadmin/superadmin.routes.ts`
-  - **O que adicionar:** Chamar `createAuditLog(prisma, { tenantId, action, performedBy: userId, payload })` (usando o `audit.plugin.ts` já existente) nos seguintes pontos:
-    - Finance: create/update/delete de `FinancialEntry` e `Expense`; liquidação e estorno de pagamento.
-    - Superadmin: mudança de plano de tenant, mudança de status, toggle de módulo, criação/liquidação de cobrança SaaS. Usar `userId` do token JWT do superadmin como `performedBy`.
-  - **Critério de aceite:** Após criar um lançamento financeiro, `GET /audit-logs` exibe o evento com action `finance:entry:create`.
+- [x] **T10 · Backend · ~6h** — Ampliar cobertura de auditoria
+  - **Implementado:** `audit.plugin.ts` só tinha o hook genérico `onResponse` (que já loga toda mutação, mas com action derivada do path tipo `create:finance`, pouco específica); não existia nenhum helper reutilizável. Criado `src/modules/audit/audit.service.ts` com `createAuditLog(client, { request, action, targetType, targetId, metadata, tenantId? })` — aceita `tx` ou `prisma` (para logar dentro de transações) e um `tenantId` explícito (necessário para ações de SUPERADMIN, que rodam com `bypassTenant: true` e portanto não teriam `tenantId` auto-injetado).
+    - Finance: `finance:entry:create/update/delete`, `finance:expense:create`, `finance:payment:manual-settle` (dentro da transação do T09). `payment:refund` (T06) já tinha seu próprio audit log inline.
+    - Superadmin: `superadmin:tenant:update` (mudança de plano e/ou status), `superadmin:tenant:modules-update` (toggle de módulo), `superadmin:charge:create`, `superadmin:charge:settle` — todos com `tenantId` do tenant afetado (não do superadmin).
+  - **Critério de aceite:** verificado — `POST /finance/entries` gera log com `action: "finance:entry:create"`; `PATCH /superadmin/tenants/:id` com mudança de status gera `superadmin:tenant:update` associado ao `tenantId` correto (não nulo).
 
 - [ ] **T11 · Backend · ~4h** — Verificação de e-mail no registro por convite
   - **Arquivo:** `src/modules/auth/auth.routes.ts`

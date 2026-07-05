@@ -21,6 +21,7 @@ import {
 import { prisma } from "../../lib/prisma.js";
 import { dueDateForCompetence, settleMonthlyFeeIncome } from "../../lib/finance.utils.js";
 import { getTenantContext, tenantContext } from "../tenancy/tenant-context.js";
+import { createAuditLog } from "../audit/audit.service.js";
 import { getCompetitionRanking, getConfrontationStats, getDisciplineRanking, getScorerRanking } from "../sports/sports.service.js";
 import { env } from "../../config/env.js";
 import { canUsePixAutoSettlement, createPixCheckout, createPixTxid, scheduleAutoSettlement, sendPaymentConfirmationEmail } from "../athletes/athlete-payment.service.js";
@@ -1885,6 +1886,14 @@ export async function financeRoutes(app: FastifyInstance) {
           },
           tx
         );
+
+        await createAuditLog(tx, {
+          request,
+          action: "finance:payment:manual-settle",
+          targetType: "Payment",
+          targetId: payment.id,
+          metadata: { amountCents: payment.amountCents, associateId: payment.associateId }
+        });
       });
     }
 
@@ -2364,6 +2373,14 @@ export async function financeRoutes(app: FastifyInstance) {
       }
     });
 
+    await createAuditLog(prisma, {
+      request,
+      action: "finance:expense:create",
+      targetType: "Expense",
+      targetId: expense.id,
+      metadata: { amountCents: expense.amountCents, category: expense.category }
+    });
+
     return reply.code(201).send(expense);
   });
 
@@ -2398,6 +2415,14 @@ export async function financeRoutes(app: FastifyInstance) {
       }
     });
 
+    await createAuditLog(prisma, {
+      request,
+      action: "finance:entry:create",
+      targetType: "FinancialEntry",
+      targetId: entry.id,
+      metadata: { amountCents: entry.amountCents, type: entry.type, category: entry.category }
+    });
+
     return reply.code(201).send(entry);
   });
 
@@ -2405,7 +2430,7 @@ export async function financeRoutes(app: FastifyInstance) {
     const { id } = entryParamsSchema.parse(request.params);
     const payload = updateFinancialEntrySchema.parse(request.body);
 
-    return prisma.financialEntry.update({
+    const updated = await prisma.financialEntry.update({
       where: { id },
       data: {
         ...(payload.type ? { type: payload.type } : {}),
@@ -2423,11 +2448,31 @@ export async function financeRoutes(app: FastifyInstance) {
         ...(payload.costCenter !== undefined ? { costCenter: payload.costCenter || null } : {})
       }
     });
+
+    await createAuditLog(prisma, {
+      request,
+      action: "finance:entry:update",
+      targetType: "FinancialEntry",
+      targetId: updated.id,
+      metadata: { amountCents: updated.amountCents, status: updated.status }
+    });
+
+    return updated;
   });
 
   app.delete("/finance/entries/:id", { preHandler: app.authorize(["ADMIN", "FINANCIAL"]) }, async (request, reply) => {
     const { id } = entryParamsSchema.parse(request.params);
-    await prisma.financialEntry.delete({ where: { id } });
+    const deleted = await prisma.financialEntry.delete({ where: { id } });
+
+    await createAuditLog(prisma, {
+      request,
+      action: "finance:entry:delete",
+      targetType: "FinancialEntry",
+      targetId: deleted.id,
+      statusCode: 204,
+      metadata: { amountCents: deleted.amountCents, type: deleted.type, category: deleted.category }
+    });
+
     return reply.status(204).send();
   });
 
