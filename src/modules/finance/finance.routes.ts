@@ -79,6 +79,7 @@ const financialQuerySchema = z.object({
 const entryParamsSchema = z.object({ id: z.string().cuid() });
 const associateParamsSchema = z.object({ associateId: z.string().cuid() });
 const paymentParamsSchema = z.object({ id: z.string().cuid() });
+const refundPaymentSchema = z.object({ reason: z.string().min(3).max(500) });
 
 const createGoalkeeperContractSchema = z.object({
   keeperName: z.string().min(2),
@@ -264,6 +265,7 @@ function financialCategoryLabel(category: FinancialCategory) {
     GOALKEEPER_CONTRACT: "Contrato de goleiro",
     UNIFORMS: "Uniformes",
     ADMINISTRATIVE: "Administrativo",
+    REFUND: "Estorno",
     OTHER: "Outros"
   };
 
@@ -1899,6 +1901,89 @@ export async function financeRoutes(app: FastifyInstance) {
       dueDate: updated.dueDate.toISOString(),
       paidAt: updated.paidAt?.toISOString() ?? null,
       status: updated.status
+    };
+  });
+
+  app.post("/finance/monthly-fees/:id/refund", { preHandler: app.authorize(["ADMIN", "FINANCIAL"]) }, async (request, reply) => {
+    const params = paymentParamsSchema.parse(request.params);
+    const payload = refundPaymentSchema.parse(request.body);
+
+    const payment = await prisma.payment.findUnique({
+      where: { id: params.id },
+      include: { associate: true }
+    });
+
+    if (!payment) {
+      return reply.status(404).send({ message: "Mensalidade não encontrada" });
+    }
+
+    if (payment.status !== PaymentStatus.PAID) {
+      return reply.status(409).send({ message: "Somente pagamentos quitados podem ser estornados" });
+    }
+
+    const refunded = await prisma.$transaction(async (tx) => {
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.REFUNDED,
+          refundedAt: new Date(),
+          refundReason: payload.reason
+        }
+      });
+
+      await tx.financialEntry.create({
+        data: {
+          type: FinancialEntryType.EXPENSE,
+          category: FinancialCategory.REFUND,
+          description: `Estorno: ${payload.reason}`,
+          amountCents: payment.amountCents,
+          competenceMonth: payment.month,
+          competenceYear: payment.year,
+          status: FinancialEntryStatus.PAID,
+          paidAt: new Date(),
+          associateId: payment.associateId
+        }
+      });
+
+      // The associate was marked ACTIVE when this payment settled; reversing it means
+      // they're no longer confirmed up to date, so drop them back to LATE (there is no
+      // "awaiting payment, not yet due" associate status distinct from ACTIVE).
+      if (payment.associate.status === AssociateStatus.ACTIVE) {
+        await tx.associate.update({
+          where: { id: payment.associateId },
+          data: { status: AssociateStatus.LATE }
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          userId: request.user.sub,
+          userName: request.user.name,
+          userEmail: request.user.email,
+          userRole: request.user.role,
+          action: "payment:refund",
+          method: request.method,
+          path: request.url.split("?")[0] ?? request.url,
+          statusCode: 200,
+          targetType: "payment",
+          targetId: payment.id,
+          metadata: {
+            reason: payload.reason,
+            amountCents: payment.amountCents,
+            associateId: payment.associateId
+          }
+        }
+      });
+
+      return updatedPayment;
+    });
+
+    return {
+      id: refunded.id,
+      status: refunded.status,
+      amountCents: refunded.amountCents,
+      refundedAt: refunded.refundedAt?.toISOString() ?? null,
+      refundReason: refunded.refundReason
     };
   });
 

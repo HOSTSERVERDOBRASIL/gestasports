@@ -61,20 +61,10 @@
     4. `GET /finance/pix-settings` e `PATCH /finance/pix-settings` incluem os novos campos.
   - **Critério de aceite:** verificado — migração `20260705163335_add_late_fee_settings` aplicada; com `lateFeeCents=500` configurado, gerar mensalidades para um período vencido marca o pagamento `LATE` com `amountCents` 6000→6500 e `lateFeeAppliedCents: 500`; `GET /finance/monthly-fees` expõe `lateFeeAppliedCents`/`lateFeeApplied` por item.
 
-- [ ] **T06 · Backend · ~10h** — Reembolso/estorno de pagamento
-  - **Arquivo:** `src/modules/finance/finance.routes.ts`
-  - **Nova rota:** `POST /finance/monthly-fees/:id/refund` (roles: ADMIN, FINANCIAL)
-  - **Lógica:**
-    1. Buscar `Payment` pelo `:id` com `tenantId` do contexto.
-    2. Validar: `status == PAID` e não há `FinancialEntry` com `category == REFUND` para este payment.
-    3. Em transação (`prisma.$transaction`):
-       - Atualizar `Payment.status = REFUNDED`, `refundedAt = now`, `refundReason = body.reason`.
-       - Criar `FinancialEntry { type: EXPENSE, category: REFUND, amountCents: payment.amountCents, status: PAID, paidAt: now, notes: "Estorno: " + reason }`.
-       - Se associado ficou `ACTIVE` por causa deste pagamento, avaliar reverter status.
-       - Criar `AuditLog { action: "payment:refund", ... }`.
-    4. Retornar payment atualizado.
-  - **Migração Prisma:** Campos `refundedAt DateTime?` e `refundReason String?` em `Payment`. Valor `REFUNDED` no enum `PaymentStatus`.
-  - **Critério de aceite:** Pagamento marcado como `PAID` pode ser estornado; lançamento de despesa é criado; não é possível estornar duas vezes.
+- [x] **T06 · Backend · ~10h** — Reembolso/estorno de pagamento
+  - **Implementado:** `POST /finance/monthly-fees/:id/refund` (ADMIN/FINANCIAL). Valida `status === PAID` (409 caso contrário — isso já cobre o caso de estornar duas vezes, já que a 1ª chamada deixa o pagamento em `REFUNDED`). Em `prisma.$transaction`: `Payment` → `REFUNDED` com `refundedAt`/`refundReason`; cria `FinancialEntry` (`EXPENSE`/`REFUND`) no valor cheio (já incluindo eventual multa); se `Associate.status === ACTIVE`, reverte para `LATE` (não existe status "pendente mas não vencido" separado de `ACTIVE` no schema, então `LATE` é o valor mais correto); grava `AuditLog` com `action: "payment:refund"`.
+  - **Migração:** `add_payment_refund` — `PaymentStatus.REFUNDED`, `FinancialCategory.REFUND`, `Payment.refundedAt`/`refundReason`.
+  - **Critério de aceite:** verificado end-to-end — estornar um pagamento `LATE` (ainda não pago) retorna 409; após `manual-settle` (PAID), o estorno cria o `FinancialEntry` de despesa, reverte o associado de `ACTIVE` para `LATE`, e uma segunda tentativa de estorno retorna 409.
 
 - [ ] **T07 · Backend · ~8h** — Pro-rata para associado que entra no meio do mês
   - **Arquivo:** `src/modules/finance/finance.routes.ts` (função `ensureMonthlyPaymentsForPeriod`) e `src/modules/associates/associates.routes.ts` (rota de criação de associado)

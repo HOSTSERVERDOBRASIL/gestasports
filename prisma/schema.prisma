@@ -18,6 +18,7 @@ enum PaymentStatus {
   PAID
   PENDING
   LATE
+  REFUNDED
 }
 
 enum CollectionStage {
@@ -172,6 +173,7 @@ enum FinancialCategory {
   GOALKEEPER_CONTRACT
   UNIFORMS
   ADMINISTRATIVE
+  REFUND
   OTHER
 }
 
@@ -959,6 +961,8 @@ model Payment {
   paidAt              DateTime?
   status              PaymentStatus @default(PENDING)
   lateFeeAppliedCents Int           @default(0)
+  refundedAt          DateTime?
+  refundReason        String?
   createdAt           DateTime      @default(now())
 
   tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
