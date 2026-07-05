@@ -78,13 +78,9 @@
   - **Implementado:** `createAssociateSchema` aceita `joinDate` opcional (default hoje); `prorataFeeForJoinDate` (novo, em `finance.utils.ts`) calcula o pro-rata a partir do mês/ano da própria `joinDate` (não do "mês atual" do servidor — assim funciona corretamente mesmo com data de ingresso retroativa/futura). `POST /associates` já cria o primeiro `Payment` daquele período com o valor pro-rata (em vez de esperar `ensureMonthlyPaymentsForPeriod`, que detecta o registro existente e não duplica). Migração `add_payment_prorata` adiciona `Payment.isProrata Boolean` para sinalizar isso de forma inequívoca no `GET /finance/monthly-fees` (em vez de inferir por `amountCents < monthlyFeeCents`, que quebraria com multa por atraso somada).
   - **Critério de aceite:** verificado — associado criado com `joinDate: "2026-06-15"` (junho/2026, 30 dias) e `monthlyFeeCents: 6000` retorna `prorataApplied: true`, `prorataFeeCents: 3200` (16 dias restantes ÷ 30); `GET /finance/monthly-fees` retorna `isProrataMonth: true` para esse pagamento.
 
-- [ ] **T08 · Backend · ~10h** — Billing real para atleta convidado (guest)
-  - **Arquivo:** `src/modules/finance/finance.routes.ts` (novas rotas)
-  - **Novas rotas:**
-    - `POST /finance/guest-athletes/:athleteId/charge` — gera `FinancialEntry { category: GUEST_ATHLETE, amountCents: athlete.guestFeeCents, status: PENDING }` validando que `athlete.guestBillingEnabled == true` e `athlete.linkType == GUEST`.
-    - `GET /finance/guest-athletes/charges?month=&year=` — lista cobranças de convidados do período com `tenantId` do contexto.
-    - `PATCH /finance/guest-athletes/charges/:entryId/settle` — marca `FinancialEntry.status = PAID, paidAt = now`.
-  - **Critério de aceite:** Atleta com `guestBillingEnabled = true` e `guestFeeCents = 2000` gera cobrança de R$20 ao chamar o endpoint; listagem exibe a cobrança; baixa manual funciona.
+- [x] **T08 · Backend · ~10h** — Billing real para atleta convidado (guest)
+  - **Implementado:** as 3 rotas descritas, mais o necessário para conectá-las: `FinancialEntry.athleteId` (novo FK, `Athlete` não tinha nenhuma ligação com lançamentos financeiros antes) e `FinancialCategory.GUEST_ATHLETE` (migração `add_financial_entry_athlete_guest`). `POST .../charge` aceita `month`/`year` opcionais no body (default: mês/ano atual) já que `FinancialEntry.competenceMonth/Year` são obrigatórios.
+  - **Critério de aceite:** verificado — atleta `GUEST` com `guestBillingEnabled=true`, `guestFeeCents=2000` gera cobrança de R$20 (`INCOME`/`GUEST_ATHLETE`, `PENDING`); listagem por período mostra nome do atleta; baixa manual marca `PAID` com `paidAt`.
 
 ---
 

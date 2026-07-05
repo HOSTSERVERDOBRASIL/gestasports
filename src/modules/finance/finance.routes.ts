@@ -80,6 +80,12 @@ const entryParamsSchema = z.object({ id: z.string().cuid() });
 const associateParamsSchema = z.object({ associateId: z.string().cuid() });
 const paymentParamsSchema = z.object({ id: z.string().cuid() });
 const refundPaymentSchema = z.object({ reason: z.string().min(3).max(500) });
+const guestAthleteParamsSchema = z.object({ athleteId: z.string().cuid() });
+const guestChargeParamsSchema = z.object({ entryId: z.string().cuid() });
+const guestChargeSchema = z.object({
+  month: z.number().int().min(1).max(12).optional(),
+  year: z.number().int().min(1980).max(2100).optional()
+});
 
 const createGoalkeeperContractSchema = z.object({
   keeperName: z.string().min(2),
@@ -266,6 +272,7 @@ function financialCategoryLabel(category: FinancialCategory) {
     UNIFORMS: "Uniformes",
     ADMINISTRATIVE: "Administrativo",
     REFUND: "Estorno",
+    GUEST_ATHLETE: "Atleta convidado",
     OTHER: "Outros"
   };
 
@@ -1986,6 +1993,88 @@ export async function financeRoutes(app: FastifyInstance) {
       amountCents: refunded.amountCents,
       refundedAt: refunded.refundedAt?.toISOString() ?? null,
       refundReason: refunded.refundReason
+    };
+  });
+
+  app.post("/finance/guest-athletes/:athleteId/charge", { preHandler: app.authorize(["ADMIN", "FINANCIAL"]) }, async (request, reply) => {
+    const params = guestAthleteParamsSchema.parse(request.params);
+    const payload = guestChargeSchema.parse(request.body ?? {});
+
+    const athlete = await prisma.athlete.findUnique({ where: { id: params.athleteId } });
+    if (!athlete) {
+      return reply.status(404).send({ message: "Atleta não encontrado" });
+    }
+
+    if (athlete.linkType !== AthleteLinkType.GUEST || !athlete.guestBillingEnabled) {
+      return reply.status(400).send({ message: "Atleta não está habilitado para cobrança de convidado" });
+    }
+
+    const today = new Date();
+    const month = payload.month ?? today.getUTCMonth() + 1;
+    const year = payload.year ?? today.getUTCFullYear();
+
+    const entry = await prisma.financialEntry.create({
+      data: {
+        type: FinancialEntryType.INCOME,
+        category: FinancialCategory.GUEST_ATHLETE,
+        description: `Cobrança avulsa - ${athlete.name}`,
+        amountCents: athlete.guestFeeCents,
+        competenceMonth: month,
+        competenceYear: year,
+        status: FinancialEntryStatus.PENDING,
+        athleteId: athlete.id
+      }
+    });
+
+    return reply.code(201).send(entry);
+  });
+
+  app.get("/finance/guest-athletes/charges", { preHandler: app.authorize(["ADMIN", "FINANCIAL"]) }, async (request) => {
+    const query = reportQuerySchema.parse(request.query);
+
+    const entries = await prisma.financialEntry.findMany({
+      where: {
+        category: FinancialCategory.GUEST_ATHLETE,
+        competenceMonth: query.month,
+        competenceYear: query.year
+      },
+      include: {
+        athlete: { select: { id: true, name: true, position: true } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return entries.map((entry) => ({
+      id: entry.id,
+      athleteId: entry.athleteId,
+      athleteName: entry.athlete?.name ?? null,
+      description: entry.description,
+      amountCents: entry.amountCents,
+      competenceMonth: entry.competenceMonth,
+      competenceYear: entry.competenceYear,
+      status: entry.status,
+      paidAt: entry.paidAt?.toISOString() ?? null,
+      createdAt: entry.createdAt.toISOString()
+    }));
+  });
+
+  app.patch("/finance/guest-athletes/charges/:entryId/settle", { preHandler: app.authorize(["ADMIN", "FINANCIAL"]) }, async (request, reply) => {
+    const params = guestChargeParamsSchema.parse(request.params);
+
+    const entry = await prisma.financialEntry.findUnique({ where: { id: params.entryId } });
+    if (!entry || entry.category !== FinancialCategory.GUEST_ATHLETE) {
+      return reply.status(404).send({ message: "Cobrança de convidado não encontrada" });
+    }
+
+    const updated = await prisma.financialEntry.update({
+      where: { id: entry.id },
+      data: { status: FinancialEntryStatus.PAID, paidAt: new Date() }
+    });
+
+    return {
+      id: updated.id,
+      status: updated.status,
+      paidAt: updated.paidAt?.toISOString() ?? null
     };
   });
 
