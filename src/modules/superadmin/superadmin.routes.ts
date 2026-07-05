@@ -709,7 +709,8 @@ export async function superadminRoutes(app: FastifyInstance) {
             name: payload.contactName || `Admin ${payload.name}`,
             email: payload.contactEmail,
             passwordHash: adminPasswordHash,
-            role: UserRole.ADMIN
+            role: UserRole.ADMIN,
+            emailVerifiedAt: new Date()
           }
         },
         modules: {
@@ -845,6 +846,7 @@ export async function superadminRoutes(app: FastifyInstance) {
         email: payload.email,
         passwordHash: await bcrypt.hash(payload.password, 10),
         role: primaryRole,
+        emailVerifiedAt: new Date(),
         roleAssignments: {
           create: additionalRoles.map((role) => ({ role }))
         }

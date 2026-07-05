@@ -97,14 +97,10 @@
     - Superadmin: `superadmin:tenant:update` (mudança de plano e/ou status), `superadmin:tenant:modules-update` (toggle de módulo), `superadmin:charge:create`, `superadmin:charge:settle` — todos com `tenantId` do tenant afetado (não do superadmin).
   - **Critério de aceite:** verificado — `POST /finance/entries` gera log com `action: "finance:entry:create"`; `PATCH /superadmin/tenants/:id` com mudança de status gera `superadmin:tenant:update` associado ao `tenantId` correto (não nulo).
 
-- [ ] **T11 · Backend · ~4h** — Verificação de e-mail no registro por convite
-  - **Arquivo:** `src/modules/auth/auth.routes.ts`
-  - **O que fazer:**
-    1. Migração: campo `emailVerifiedAt DateTime?` em `User`.
-    2. Ao criar usuário via `POST /auth/invite-register`: enviar e-mail com link `GET /auth/verify-email?token=UUID` (token armazenado em `User.emailVerificationToken`, expira 24h).
-    3. Nova rota `GET /auth/verify-email?token=`: buscar usuário pelo token, validar expiração, setar `emailVerifiedAt = now`, limpar token.
-    4. Em `POST /auth/login`: se `emailVerifiedAt == null` e `NODE_ENV == production`, retornar 403 com `"E-mail não verificado"`.
-  - **Critério de aceite:** Em produção, usuário registrado por convite não consegue logar até clicar no link de verificação.
+- [x] **T11 · Backend · ~4h** — Verificação de e-mail no registro por convite
+  - **Implementado com um ajuste importante em relação ao texto original:** o token não fica em `User.emailVerificationToken` — seguindo o padrão já usado por `PasswordResetToken` neste código (tabela própria, `tokenHash` em vez de token em texto puro, expiração e `usedAt`), criei `EmailVerificationToken` do mesmo jeito. `GET /auth/verify-email?token=` valida hash+expiração+uso único, marca `emailVerifiedAt` e `usedAt`.
+  - **Achado importante:** gatear `POST /auth/login` por `emailVerifiedAt == null` bloquearia **todo mundo** em produção — usuários criados via `POST /auth/users` (admin cadastra direto) e o ADMIN inicial de cada tenant (criado pelo superadmin) nunca passam por `/auth/invite-register`, então nunca teriam `emailVerifiedAt` setado. Corrigido: essas 3 rotas de criação de usuário (`POST /auth/users`, criação de tenant no superadmin, `POST /superadmin/tenants/:tenantId/users`) agora setam `emailVerifiedAt = now()` na criação, já que não são auto-cadastro. Migração `backfill_email_verified` marca todo usuário já existente como verificado (`emailVerifiedAt = createdAt`) para não bloquear contas atuais. Só `/auth/invite-register` (auto-cadastro via convite) exige o clique no link.
+  - **Critério de aceite:** verificado com `NODE_ENV=production` real — usuário recém-registrado por convite recebe 403 ("E-mail não verificado") até clicar no link (testado com token gerado diretamente, já que SMTP não está configurado neste ambiente); após verificar, login funciona; usuários pré-existentes/criados por admin não são afetados.
 
 - [ ] **T12 · Backend · ~4h** — Bloqueio de conta após tentativas de login falhas
   - **Migração Prisma:** Adicionar em `User`: `failedLoginAttempts Int @default(0)`, `lockedUntil DateTime?`.

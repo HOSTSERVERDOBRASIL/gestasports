@@ -400,6 +400,7 @@ model User {
   passwordHash String
   role         UserRole @default(ATHLETE)
   associateId  String?  @unique
+  emailVerifiedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -410,6 +411,7 @@ model User {
   archiveItems  ArchiveItem[]
   roleAssignments UserRoleAssignment[]
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
   auditLogs AuditLog[]
   lineupDraftAttempts LineupDraftAttempt[]
 
@@ -714,6 +716,19 @@ model UserRoleAssignment {
 }
 
 model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model EmailVerificationToken {
   id        String    @id @default(cuid())
   userId    String
   tokenHash String    @unique

@@ -165,6 +165,46 @@ async function sendPasswordResetEmail(to: string, name: string, resetUrl: string
   return true;
 }
 
+async function sendVerificationEmail(to: string, name: string, verifyUrl: string, productName = "GestaSports") {
+  if (!env.SMTP_HOST || !env.SMTP_PORT || !env.SMTP_FROM) {
+    return false;
+  }
+
+  const nodemailer = await import("nodemailer");
+  const transporter = nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_PORT === 465,
+    auth: env.SMTP_USER && env.SMTP_PASS ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined
+  });
+
+  await transporter.sendMail({
+    from: env.SMTP_FROM,
+    to,
+    subject: `Confirme seu e-mail - ${productName}`,
+    html: `
+      <p>Ola, ${name}.</p>
+      <p>Confirme seu e-mail para concluir seu cadastro no ${productName}.</p>
+      <p><a href="${verifyUrl}">Clique aqui para confirmar seu e-mail</a>.</p>
+      <p>Este link expira em 24 horas.</p>
+    `
+  });
+
+  return true;
+}
+
+async function createEmailVerificationToken(userId: string) {
+  const token = crypto.randomUUID();
+  const tokenHash = hashResetToken(token);
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  await prisma.emailVerificationToken.create({
+    data: { userId, tokenHash, expiresAt }
+  });
+
+  return token;
+}
+
 async function serializeManagedUser(userId: string, tenantId?: string | null) {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
@@ -313,6 +353,14 @@ export async function authRoutes(app: FastifyInstance) {
       });
     });
 
+    const verificationToken = await createEmailVerificationToken(created.id);
+    const verifyUrl = `${getRequestOrigin(request)}/api/auth/verify-email?token=${encodeURIComponent(verificationToken)}`;
+    try {
+      await sendVerificationEmail(created.email, created.name, verifyUrl);
+    } catch (error) {
+      app.log.error({ error, email: created.email }, "Falha ao enviar email de verificação");
+    }
+
     const roles = resolveEffectiveRoles(created.role, []);
     const token = await reply.jwtSign({
       sub: created.id,
@@ -334,6 +382,23 @@ export async function authRoutes(app: FastifyInstance) {
         email: created.email
       }
     });
+  });
+
+  app.get("/auth/verify-email", async (request, reply) => {
+    const query = z.object({ token: z.string().min(10) }).parse(request.query);
+    const tokenHash = hashResetToken(query.token);
+
+    const verification = await prisma.emailVerificationToken.findUnique({ where: { tokenHash } });
+    if (!verification || verification.usedAt || verification.expiresAt < new Date()) {
+      return reply.status(400).send({ message: "Link de verificação inválido ou expirado" });
+    }
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: verification.userId }, data: { emailVerifiedAt: new Date() } }),
+      prisma.emailVerificationToken.update({ where: { id: verification.id }, data: { usedAt: new Date() } })
+    ]);
+
+    return { verified: true, message: "E-mail verificado com sucesso." };
   });
 
   app.post(
@@ -387,6 +452,10 @@ export async function authRoutes(app: FastifyInstance) {
 
     if (!passwordOk) {
       return reply.status(401).send({ message: "Credenciais inválidas" });
+    }
+
+    if (env.NODE_ENV === "production" && user.role !== "SUPERADMIN" && !user.emailVerifiedAt) {
+      return reply.status(403).send({ message: "E-mail não verificado. Confira sua caixa de entrada." });
     }
 
     const roles = resolveEffectiveRoles(
@@ -701,6 +770,9 @@ export async function authRoutes(app: FastifyInstance) {
         email: payload.email,
         passwordHash,
         role: primaryRole,
+        // Created directly by an admin (not self-service), so there's no unverified email
+        // address to gate on — only /auth/invite-register requires clicking the link.
+        emailVerifiedAt: new Date(),
         ...(payload.associateId ?
            {
               associate: {
