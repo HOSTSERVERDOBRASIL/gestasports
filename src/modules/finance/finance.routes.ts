@@ -189,7 +189,9 @@ const pixSettingsSchema = z.object({
   pixReceiverName: z.string().min(2).max(80),
   pixCity: z.string().min(2).max(40),
   pixAutoSettleSeconds: z.number().int().min(5).max(600),
-  monthlyDueDay: z.number().int().min(1).max(28).default(10)
+  monthlyDueDay: z.number().int().min(1).max(28).default(10),
+  lateFeeCents: z.number().int().min(0).max(100_000).default(0),
+  lateFeePercent: z.number().min(0).max(100).default(0)
 });
 
 const pixWebhookParamsSchema = z.object({
@@ -285,15 +287,28 @@ function toStartOfTodayUtc() {
 
 async function updateLatePaymentsForPeriod(month: number, year: number) {
   const today = toStartOfTodayUtc();
-  await prisma.payment.updateMany({
+  const settings = await getPaymentSettings();
+  const overdue = await prisma.payment.findMany({
     where: {
       month,
       year,
       status: PaymentStatus.PENDING,
       dueDate: { lt: today }
     },
-    data: { status: PaymentStatus.LATE }
+    select: { id: true, amountCents: true }
   });
+
+  for (const payment of overdue) {
+    const lateFeeAppliedCents = settings.lateFeeCents + Math.round((payment.amountCents * settings.lateFeePercent) / 100);
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: PaymentStatus.LATE,
+        amountCents: payment.amountCents + lateFeeAppliedCents,
+        lateFeeAppliedCents
+      }
+    });
+  }
 }
 
 function daysDiffFromToday(date: Date) {
@@ -344,7 +359,9 @@ export async function getPaymentSettings() {
     pixReceiverName: settings?.pixReceiverName ?? env.PIX_RECEIVER_NAME,
     pixCity: settings?.pixCity ?? env.PIX_CITY,
     pixAutoSettleSeconds: settings?.pixAutoSettleSeconds ?? env.PIX_AUTO_SETTLE_SECONDS,
-    monthlyDueDay: settings?.monthlyDueDay ?? 10
+    monthlyDueDay: settings?.monthlyDueDay ?? 10,
+    lateFeeCents: settings?.lateFeeCents ?? 0,
+    lateFeePercent: settings?.lateFeePercent ?? 0
   };
 }
 
@@ -1755,7 +1772,9 @@ export async function financeRoutes(app: FastifyInstance) {
         pixReceiverName: payload.pixReceiverName,
         pixCity: payload.pixCity,
         pixAutoSettleSeconds: payload.pixAutoSettleSeconds,
-        monthlyDueDay: payload.monthlyDueDay
+        monthlyDueDay: payload.monthlyDueDay,
+        lateFeeCents: payload.lateFeeCents,
+        lateFeePercent: payload.lateFeePercent
       };
 
     if (existing) {
@@ -1806,7 +1825,9 @@ export async function financeRoutes(app: FastifyInstance) {
       amountCents: payment.amountCents,
       dueDate: payment.dueDate.toISOString(),
       paidAt: payment.paidAt?.toISOString() ?? null,
-      status: payment.status
+      status: payment.status,
+      lateFeeAppliedCents: payment.lateFeeAppliedCents,
+      lateFeeApplied: payment.lateFeeAppliedCents > 0
     }));
   });
 

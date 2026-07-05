@@ -51,7 +51,7 @@
   - **Corrigido:** `athletes.routes.ts` tinha uma cópia com o dia fixo em 10 (`Date.UTC(year, month-1, 10)`) usada em `GET /athlete/me` (due date projetada) e `POST /athlete/me/payments/current/checkout` (criação real do `Payment`). Ambos os pontos agora buscam `getPaymentSettings()` (exportado de `finance.routes.ts`) e passam `monthlyDueDay` real.
   - **Critério de aceite:** verificado — `POST /finance/monthly-fees/generate` gera `Payment` com `dueDate` calculado a partir de `settings.monthlyDueDay` (dia 10 por padrão); um único source of truth compartilhado entre os dois módulos.
 
-- [ ] **T05 · Backend · ~12h** — Multa por atraso configurável
+- [x] **T05 · Backend · ~12h** — Multa por atraso configurável
   - **Migração Prisma:** Adicionar em `PaymentSettings`: `lateFeeCents Int @default(0)`, `lateFeePercent Float @default(0)`. Rodar `prisma migrate dev`.
   - **Arquivo:** `src/modules/finance/finance.routes.ts`
   - **O que fazer:**
@@ -59,7 +59,7 @@
     2. Migração: campo `lateFeeAppliedCents Int @default(0)` em `Payment`.
     3. `GET /finance/monthly-fees` retorna `lateFeeAppliedCents` por item.
     4. `GET /finance/pix-settings` e `PATCH /finance/pix-settings` incluem os novos campos.
-  - **Critério de aceite:** Pagamento em atraso com `lateFeeCents = 500` (R$5) aparece com `amountCents` original + 500; pagamento pontual não é afetado.
+  - **Critério de aceite:** verificado — migração `20260705163335_add_late_fee_settings` aplicada; com `lateFeeCents=500` configurado, gerar mensalidades para um período vencido marca o pagamento `LATE` com `amountCents` 6000→6500 e `lateFeeAppliedCents: 500`; `GET /finance/monthly-fees` expõe `lateFeeAppliedCents`/`lateFeeApplied` por item.
 
 - [ ] **T06 · Backend · ~10h** — Reembolso/estorno de pagamento
   - **Arquivo:** `src/modules/finance/finance.routes.ts`

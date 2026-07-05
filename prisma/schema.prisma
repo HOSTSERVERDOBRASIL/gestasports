@@ -776,6 +776,8 @@ model PaymentSettings {
   pixCity              String
   pixAutoSettleSeconds Int      @default(20)
   monthlyDueDay        Int      @default(10)
+  lateFeeCents         Int      @default(0)
+  lateFeePercent       Float    @default(0)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -947,16 +949,17 @@ model Attendance {
 }
 
 model Payment {
-  id          String        @id @default(cuid())
-  tenantId    String?
-  associateId String
-  month       Int
-  year        Int
-  amountCents Int
-  dueDate     DateTime
-  paidAt      DateTime?
-  status      PaymentStatus @default(PENDING)
-  createdAt   DateTime      @default(now())
+  id                  String        @id @default(cuid())
+  tenantId            String?
+  associateId         String
+  month               Int
+  year                Int
+  amountCents         Int
+  dueDate             DateTime
+  paidAt              DateTime?
+  status              PaymentStatus @default(PENDING)
+  lateFeeAppliedCents Int           @default(0)
+  createdAt           DateTime      @default(now())
 
   tenant OrganizationTenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   associate Associate @relation(fields: [associateId], references: [id], onDelete: Cascade)
