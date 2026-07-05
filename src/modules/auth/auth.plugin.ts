@@ -29,10 +29,22 @@ function markTenantBypassForSuperadmin(user: JwtUser) {
   setTenantBypass(effectiveRolesFor(user).includes("SUPERADMIN"));
 }
 
+// request.tenant comes from the (attacker-controllable) Host/X-Tenant-Slug header and must
+// never be trusted for data scoping once we have a verified JWT — always scope by the token's tenantId.
 function applyAuthenticatedTenant(request: FastifyRequest, user: JwtUser) {
-  if (!request.tenant && user.tenantId) {
+  if (user.tenantId) {
     setTenantContextTenantId(user.tenantId);
   }
+}
+
+// Reject requests where the Host-resolved tenant differs from the token's own tenant, so a
+// valid user from tenant A can't act on tenant B's data by spoofing the Host header.
+function isTenantMismatched(request: FastifyRequest, user: JwtUser) {
+  if (effectiveRolesFor(user).includes("SUPERADMIN")) {
+    return false;
+  }
+
+  return Boolean(request.tenant) && request.tenant?.id !== user.tenantId;
 }
 
 function isTenantBlocked(request: FastifyRequest, user: JwtUser) {
@@ -165,6 +177,10 @@ export const authPlugin = fp(async (app) => {
       return reply.status(401).send({ message: "Não autorizado" });
     }
 
+    if (isTenantMismatched(request, user)) {
+      return reply.status(403).send({ message: "Token não pertence a este ambiente" });
+    }
+
     if (isTenantBlocked(request, user)) {
       return reply.status(402).send(blockedTenantPayload(request));
     }
@@ -197,6 +213,11 @@ export const authPlugin = fp(async (app) => {
 
       if (!directlyAuthorized && !sportsDirectorAuthorized) {
         reply.status(403).send({ message: "Sem permissão para esta ação" });
+        return;
+      }
+
+      if (isTenantMismatched(request, user)) {
+        reply.status(403).send({ message: "Token não pertence a este ambiente" });
         return;
       }
 

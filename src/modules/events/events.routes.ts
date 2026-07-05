@@ -107,7 +107,7 @@ export async function eventRoutes(app: FastifyInstance) {
   });
 
   app.post("/events", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
     if (!tenantId) {
       return reply.status(400).send({ message: "Ambiente do clube não identificado para cadastrar evento." });
     }
@@ -170,7 +170,7 @@ export async function eventRoutes(app: FastifyInstance) {
   });
 
   app.post("/events/:id/registrations", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
     if (!tenantId) {
       return reply.status(400).send({ message: "Ambiente do clube não identificado para cadastrar inscrição." });
     }

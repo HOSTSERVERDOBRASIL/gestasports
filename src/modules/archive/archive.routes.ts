@@ -223,7 +223,7 @@ export async function archiveRoutes(app: FastifyInstance) {
   }
 
   async function ensureArchiveAccess(reply: FastifyReply, type: ArchiveItemType) {
-    const tenantId = reply.request.tenant?.id;
+    const tenantId = reply.request.user?.tenantId ?? reply.request.tenant?.id;
     if (!tenantId) {
       reply.status(400).send({ message: "Ambiente do clube nÃ£o identificado para acessar o acervo." });
       return false;
@@ -292,7 +292,7 @@ export async function archiveRoutes(app: FastifyInstance) {
   });
 
   app.get("/memorial-categories", { preHandler: app.authorize(["ADMIN", "FINANCIAL"]) }, async (_request, reply) => {
-    const tenantId = reply.request.tenant?.id;
+    const tenantId = reply.request.user.tenantId ?? reply.request.tenant?.id;
     if (!tenantId) {
       return reply.status(400).send({ message: "Ambiente do clube nao identificado para acessar categorias do memorial." });
     }
@@ -308,7 +308,7 @@ export async function archiveRoutes(app: FastifyInstance) {
   });
 
   app.post("/memorial-categories", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
-    const tenantId = request.tenant?.id;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
     if (!tenantId) {
       return reply.status(400).send({ message: "Ambiente do clube nao identificado para criar categoria do memorial." });
     }
@@ -329,7 +329,7 @@ export async function archiveRoutes(app: FastifyInstance) {
   });
 
   app.patch("/memorial-categories/:slug", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
-    const tenantId = request.tenant?.id;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
     if (!tenantId) {
       return reply.status(400).send({ message: "Ambiente do clube nao identificado para atualizar categoria do memorial." });
     }
@@ -392,7 +392,7 @@ export async function archiveRoutes(app: FastifyInstance) {
   });
 
   app.post("/archive-items", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
-    const tenantId = request.tenant?.id;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
     if (!tenantId) {
       return reply.status(400).send({ message: "Ambiente do clube nÃ£o identificado para cadastrar item do acervo." });
     }
@@ -484,7 +484,7 @@ export async function archiveRoutes(app: FastifyInstance) {
   });
 
   app.post("/archive-items/:id/attachments", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
-    const tenantId = request.tenant?.id;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
     if (!tenantId) {
       return reply.status(400).send({ message: "Ambiente do clube nÃ£o identificado para anexar arquivo." });
     }

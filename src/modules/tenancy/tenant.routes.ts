@@ -109,7 +109,7 @@ export async function tenantRoutes(app: FastifyInstance) {
   });
 
   app.get("/tenant/billing-status", { preHandler: app.authenticate }, async (request, reply) => {
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
 
     if (!tenantId) {
       return reply.status(404).send({ message: "Cliente não encontrado para este domínio" });
@@ -154,7 +154,7 @@ export async function tenantRoutes(app: FastifyInstance) {
   });
 
   app.get("/tenant/branding", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
 
     if (!tenantId) {
       return reply.status(404).send({ message: "Cliente não encontrado para este domínio" });
@@ -179,7 +179,7 @@ export async function tenantRoutes(app: FastifyInstance) {
   });
 
   app.patch("/tenant/branding", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
 
     if (!tenantId) {
       return reply.status(404).send({ message: "Cliente não encontrado para este domínio" });

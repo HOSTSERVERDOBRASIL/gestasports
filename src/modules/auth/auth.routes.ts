@@ -592,7 +592,7 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   app.get("/auth/users", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
 
     if (!tenantId) {
       return reply.status(400).send({ message: "Informe o ambiente do cliente para listar usuários." });
@@ -656,7 +656,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.get("/auth/users/:id", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
     const params = userIdParamsSchema.parse(request.params);
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
 
     if (!tenantId) {
       return reply.status(400).send({ message: "Informe o ambiente do cliente para consultar usuário." });
@@ -667,7 +667,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.post("/auth/users", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
     const payload = createUserSchema.parse(request.body);
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
 
     if (!tenantId) {
       return reply.status(400).send({ message: "Informe o ambiente do cliente para cadastrar usuário." });
@@ -733,7 +733,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.patch("/auth/users/:id/roles", { preHandler: app.authorize(["ADMIN"]) }, async (request) => {
     const params = userIdParamsSchema.parse(request.params);
     const payload = updateUserRolesSchema.parse(request.body);
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
 
     if (!tenantId) {
       throw new Error("Informe o ambiente do cliente para alterar usuário.");
@@ -793,7 +793,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.patch("/auth/users/:id", { preHandler: app.authorize(["ADMIN"]) }, async (request) => {
     const params = userIdParamsSchema.parse(request.params);
     const payload = updateUserSchema.parse(request.body);
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
 
     if (!tenantId) {
       throw new Error("Informe o ambiente do cliente para alterar usuário.");

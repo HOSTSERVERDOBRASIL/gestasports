@@ -299,7 +299,7 @@ export async function sportsRoutes(app: FastifyInstance) {
   });
 
   app.post("/sports/fields", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
     if (!tenantId) {
       return reply.status(400).send({ message: "Ambiente do clube não identificado para cadastrar campo." });
     }
@@ -450,7 +450,7 @@ export async function sportsRoutes(app: FastifyInstance) {
 
   app.post("/sports/games", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
     const payload = createGameSchema.parse(request.body);
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
 
     if (!tenantId) {
       return reply.status(400).send({ message: "Ambiente do clube não identificado para cadastrar jogo." });

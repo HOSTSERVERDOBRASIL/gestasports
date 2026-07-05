@@ -77,7 +77,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
   });
 
   app.get("/dashboard/layout", { preHandler: app.authorize(["ADMIN", "FINANCIAL", "SPORTS_DIRECTOR"]) }, async (request, reply) => {
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
     if (!tenantId) {
       return reply.status(400).send({ message: "Ambiente do clube nao identificado para carregar layout do dashboard." });
     }
@@ -98,7 +98,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
   });
 
   app.put("/dashboard/layout", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
-    const tenantId = request.tenant?.id ?? request.user.tenantId;
+    const tenantId = request.user.tenantId ?? request.tenant?.id;
     if (!tenantId) {
       return reply.status(400).send({ message: "Ambiente do clube nao identificado para salvar layout do dashboard." });
     }
