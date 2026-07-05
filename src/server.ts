@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import fastifyStatic from "@fastify/static";
 import fs from "node:fs";
 import path from "node:path";
@@ -73,6 +74,11 @@ if (env.NODE_ENV === "production") {
 } else {
   await app.register(cors, { origin: true, credentials: true });
 }
+await app.register(rateLimit, {
+  global: true,
+  max: 300,
+  timeWindow: "1 minute"
+});
 await app.register(tenantPlugin);
 await app.register(authPlugin);
 await app.register(auditPlugin);

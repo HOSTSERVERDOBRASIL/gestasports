@@ -24,7 +24,7 @@
     - Callsites que liam `request.tenant?.id ?? request.user.tenantId` diretamente (em vez do contexto automático) tiveram a precedência invertida para `request.user.tenantId ?? request.tenant?.id` em: `auth.routes.ts`, `tenant.routes.ts`, `dashboard.routes.ts`, `events.routes.ts`, `sports.routes.ts`, `archive.routes.ts` (incluindo `ensureArchiveAccess` e as rotas de `MemorialCategory`, que usam `$queryRaw` e por isso não passam pela extensão automática do Prisma).
   - **Critério de aceite:** verificado — login real como ADMIN do Tenant A, replay do token contra `X-Tenant-Slug: tenant-b-test` em `GET /api/auth/users` retorna `403 {"message":"Token não pertence a este ambiente"}`; a mesma chamada com o slug correto retorna `200`.
 
-- [ ] **T02 · Backend · ~4h** — Rate limiting em rotas de autenticação
+- [x] **T02 · Backend · ~4h** — Rate limiting em rotas de autenticação — verificado: 11ª tentativa de login retorna `429` com `Retry-After: 900`.
   - **Arquivo:** `src/server.ts`, `src/modules/auth/auth.routes.ts`
   - **O que fazer:**
     1. Instalar: `npm install @fastify/rate-limit`

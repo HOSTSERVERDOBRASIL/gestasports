@@ -336,7 +336,10 @@ export async function authRoutes(app: FastifyInstance) {
     });
   });
 
-  app.post("/auth/login", async (request, reply) => {
+  app.post(
+    "/auth/login",
+    { config: { rateLimit: { max: 10, timeWindow: "15 minutes" } } },
+    async (request, reply) => {
     const payload = loginSchema.parse(request.body);
     const tenantId = request.tenant?.id || null;
     const allowDevelopmentTenantFallback = env.NODE_ENV !== "production" && !tenantId;
@@ -404,7 +407,8 @@ export async function authRoutes(app: FastifyInstance) {
       token,
       user: await serializeAuthUserWithModules(user, roles)
     };
-  });
+    }
+  );
 
   app.post("/auth/reauth", { preHandler: app.authenticate }, async (request, reply) => {
     const payload = reauthSchema.parse(request.body);
@@ -448,7 +452,10 @@ export async function authRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  app.post("/auth/password/forgot", async (request, reply) => {
+  app.post(
+    "/auth/password/forgot",
+    { config: { rateLimit: { max: 5, timeWindow: "1 hour" } } },
+    async (request, reply) => {
     const payload = forgotPasswordSchema.parse(request.body);
     const tenantId = request.tenant?.id ?? null;
     const user = await prisma.user.findFirst({
@@ -498,7 +505,8 @@ export async function authRoutes(app: FastifyInstance) {
         : "Link de recuperação gerado. Configure SMTP para envio automático por email.",
       resetUrl: !emailSent && env.NODE_ENV !== "production" ? resetUrl : undefined
     });
-  });
+    }
+  );
 
   app.get("/auth/password/reset-token", async (request, reply) => {
     const parsedQuery = z.object({ token: z.string().min(32) }).safeParse(request.query);
