@@ -401,6 +401,8 @@ model User {
   role         UserRole @default(ATHLETE)
   associateId  String?  @unique
   emailVerifiedAt DateTime?
+  failedLoginAttempts Int @default(0)
+  lockedUntil  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

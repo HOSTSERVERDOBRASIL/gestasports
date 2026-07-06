@@ -102,14 +102,9 @@
   - **Achado importante:** gatear `POST /auth/login` por `emailVerifiedAt == null` bloquearia **todo mundo** em produção — usuários criados via `POST /auth/users` (admin cadastra direto) e o ADMIN inicial de cada tenant (criado pelo superadmin) nunca passam por `/auth/invite-register`, então nunca teriam `emailVerifiedAt` setado. Corrigido: essas 3 rotas de criação de usuário (`POST /auth/users`, criação de tenant no superadmin, `POST /superadmin/tenants/:tenantId/users`) agora setam `emailVerifiedAt = now()` na criação, já que não são auto-cadastro. Migração `backfill_email_verified` marca todo usuário já existente como verificado (`emailVerifiedAt = createdAt`) para não bloquear contas atuais. Só `/auth/invite-register` (auto-cadastro via convite) exige o clique no link.
   - **Critério de aceite:** verificado com `NODE_ENV=production` real — usuário recém-registrado por convite recebe 403 ("E-mail não verificado") até clicar no link (testado com token gerado diretamente, já que SMTP não está configurado neste ambiente); após verificar, login funciona; usuários pré-existentes/criados por admin não são afetados.
 
-- [ ] **T12 · Backend · ~4h** — Bloqueio de conta após tentativas de login falhas
-  - **Migração Prisma:** Adicionar em `User`: `failedLoginAttempts Int @default(0)`, `lockedUntil DateTime?`.
-  - **Arquivo:** `src/modules/auth/auth.routes.ts` (rota `POST /auth/login`)
-  - **Lógica:**
-    1. Antes de verificar senha: se `user.lockedUntil > now`, retornar 429 com `"Conta bloqueada até HH:MM"`.
-    2. Se senha incorreta: incrementar `failedLoginAttempts`; se `>= 5`, setar `lockedUntil = now + 15min`.
-    3. Se senha correta: zerar `failedLoginAttempts = 0`, limpar `lockedUntil = null`.
-  - **Critério de aceite:** Após 5 senhas erradas, login retorna 429. Após 15 min, login funciona normalmente com senha correta.
+- [x] **T12 · Backend · ~4h** — Bloqueio de conta após tentativas de login falhas
+  - **Implementado** exatamente como descrito: `User.failedLoginAttempts`/`lockedUntil` (migração `add_login_lockout`); checagem de bloqueio antes da senha; incremento/reset em `POST /auth/login`.
+  - **Critério de aceite:** verificado — 5 senhas erradas seguidas bloqueiam a conta; a 6ª tentativa retorna `429` mesmo com a senha **correta**; forçando `lockedUntil` para o passado (simulando os 15 min), login com senha correta volta a funcionar e zera `failedLoginAttempts`/`lockedUntil`.
 
 - [ ] **T13 · Backend · ~8h** — Revogação real de sessão JWT
   - **Migração Prisma:** Nova model `RevokedToken { jti String @id, revokedAt DateTime @default(now()), expiresAt DateTime }`. Index em `expiresAt`.

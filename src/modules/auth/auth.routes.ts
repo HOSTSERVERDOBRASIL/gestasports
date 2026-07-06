@@ -448,10 +448,33 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(401).send({ message: "Credenciais inválidas" });
     }
 
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const unlockTime = user.lockedUntil.toISOString().slice(11, 16);
+      return reply.status(429).send({ message: `Conta bloqueada até ${unlockTime} (UTC) por excesso de tentativas.` });
+    }
+
     const passwordOk = await bcrypt.compare(payload.password, user.passwordHash);
 
     if (!passwordOk) {
+      const failedLoginAttempts = user.failedLoginAttempts + 1;
+      const lockedOut = failedLoginAttempts >= 5;
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: lockedOut ? 0 : failedLoginAttempts,
+          lockedUntil: lockedOut ? new Date(Date.now() + 15 * 60 * 1000) : null
+        }
+      });
+
       return reply.status(401).send({ message: "Credenciais inválidas" });
+    }
+
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedLoginAttempts: 0, lockedUntil: null }
+      });
     }
 
     if (env.NODE_ENV === "production" && user.role !== "SUPERADMIN" && !user.emailVerifiedAt) {
