@@ -3,6 +3,7 @@ import fastifyJwt from "@fastify/jwt";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { TenantModuleCode, type UserRole } from "@prisma/client";
 import { env } from "../../config/env.js";
+import { prisma } from "../../lib/prisma.js";
 import { tenantContext } from "../tenancy/tenant-context.js";
 import { getEnabledTenantModuleCodes } from "../tenancy/tenant-modules.js";
 
@@ -13,7 +14,19 @@ type JwtUser = {
   roles: UserRole[];
   name: string;
   email: string;
+  jti: string;
 };
+
+async function isTokenRevoked(jti: string) {
+  // Lazily sweep expired rows instead of running a scheduled job — cheap since revocations are
+  // rare (only explicit logouts) and this keeps the table from growing unbounded.
+  if (Math.random() < 0.01) {
+    await prisma.revokedToken.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+  }
+
+  const revoked = await prisma.revokedToken.findUnique({ where: { jti } });
+  return Boolean(revoked);
+}
 
 const tenantAccessAllowList = new Set([
   "/api/auth/me",
@@ -181,6 +194,11 @@ export const authPlugin = fp(async (app) => {
       user = request.user as JwtUser;
     } catch {
       reply.status(401).send({ message: "Não autorizado" });
+      return;
+    }
+
+    if (await isTokenRevoked(user.jti)) {
+      reply.status(401).send({ message: "Sessão encerrada. Faça login novamente." });
       return;
     }
 

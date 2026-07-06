@@ -106,15 +106,9 @@
   - **Implementado** exatamente como descrito: `User.failedLoginAttempts`/`lockedUntil` (migração `add_login_lockout`); checagem de bloqueio antes da senha; incremento/reset em `POST /auth/login`.
   - **Critério de aceite:** verificado — 5 senhas erradas seguidas bloqueiam a conta; a 6ª tentativa retorna `429` mesmo com a senha **correta**; forçando `lockedUntil` para o passado (simulando os 15 min), login com senha correta volta a funcionar e zera `failedLoginAttempts`/`lockedUntil`.
 
-- [ ] **T13 · Backend · ~8h** — Revogação real de sessão JWT
-  - **Migração Prisma:** Nova model `RevokedToken { jti String @id, revokedAt DateTime @default(now()), expiresAt DateTime }`. Index em `expiresAt`.
-  - **Arquivo:** `src/modules/auth/auth.routes.ts`, `src/modules/auth/auth.plugin.ts`
-  - **O que fazer:**
-    1. Ao gerar JWT em login/invite-register, incluir `jti: uuidv4()` no payload.
-    2. Nova rota `POST /auth/logout` (autenticada): inserir `{ jti, expiresAt: tokenExp }` em `RevokedToken`.
-    3. Em `auth.plugin.ts` (verificação de JWT): após validar assinatura, checar `await prisma.revokedToken.findUnique({ where: { jti } })` — se encontrar, retornar 401.
-    4. Limpeza lazy: ao checar, deletar tokens com `expiresAt < now` (ou scheduled job simples).
-  - **Critério de aceite:** Após `POST /auth/logout`, usar o mesmo token retorna 401 em qualquer rota autenticada.
+- [x] **T13 · Backend · ~8h** — Revogação real de sessão JWT
+  - **Implementado** como descrito: migração `add_revoked_token`; `jti: crypto.randomUUID()` incluído nos dois pontos de assinatura (login e invite-register); `POST /auth/logout` (autenticado) grava `{jti, expiresAt}` via `upsert` (idempotente); `auth.plugin.ts` checa revogação logo após `jwtVerify()`, antes de qualquer outra checagem. Limpeza lazy probabilística (~1% das requisições autenticadas) faz `deleteMany` de tokens já expirados, evitando rodar essa varredura em toda requisição.
+  - **Critério de aceite:** verificado — token usado com sucesso antes do logout; `POST /auth/logout` retorna 204; o mesmo token reaproveitado em seguida numa rota autenticada retorna 401 ("Sessão encerrada").
 
 ---
 

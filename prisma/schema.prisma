@@ -717,6 +717,14 @@ model UserRoleAssignment {
   @@index([role])
 }
 
+model RevokedToken {
+  jti       String   @id
+  revokedAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 model PasswordResetToken {
   id        String    @id @default(cuid())
   userId    String

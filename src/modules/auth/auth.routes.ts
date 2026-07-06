@@ -15,6 +15,8 @@ type JwtUser = {
   name: string;
   email: string;
   tenantId: string | null;
+  jti: string;
+  exp: number;
 };
 
 function serializeAuthUser(user: {
@@ -368,7 +370,8 @@ export async function authRoutes(app: FastifyInstance) {
       role: created.role,
       roles,
       name: created.name,
-      email: created.email
+      email: created.email,
+      jti: crypto.randomUUID()
     });
 
     return reply.code(201).send({
@@ -492,7 +495,8 @@ export async function authRoutes(app: FastifyInstance) {
       role: user.role,
       roles,
       name: user.name,
-      email: user.email
+      email: user.email,
+      jti: crypto.randomUUID()
     });
 
     return {
@@ -542,6 +546,21 @@ export async function authRoutes(app: FastifyInstance) {
     });
 
     return { ok: true };
+  });
+
+  app.post("/auth/logout", { preHandler: app.authenticate }, async (request, reply) => {
+    const currentUser = request.user as JwtUser;
+
+    await prisma.revokedToken.upsert({
+      where: { jti: currentUser.jti },
+      update: {},
+      create: {
+        jti: currentUser.jti,
+        expiresAt: new Date(currentUser.exp * 1000)
+      }
+    });
+
+    return reply.status(204).send();
   });
 
   app.post(

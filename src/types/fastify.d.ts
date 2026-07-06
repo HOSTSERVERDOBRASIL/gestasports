@@ -21,6 +21,7 @@ declare module "@fastify/jwt" {
       roles: UserRole[];
       name: string;
       email: string;
+      jti: string;
     };
     user: {
       sub: string;
@@ -29,6 +30,8 @@ declare module "@fastify/jwt" {
       roles: UserRole[];
       name: string;
       email: string;
+      jti: string;
+      exp: number;
     };
   }
 }
