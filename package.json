@@ -11,8 +11,11 @@
     "build": "tsc -p tsconfig.json",
     "build:all": "npm run build && npm run frontend:build",
     "check": "npm run build:all && npm run frontend:lint && npm run prisma:validate",
-    "test": "npm run test:security",
+    "test": "npm run test:security && npm run test:unit",
     "test:security": "node scripts/security-preflight.cjs",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "tenant:audit": "node scripts/tenant-null-audit.cjs",
     "tenant:backfill": "node scripts/backfill-legacy-tenant.cjs",
     "start": "node dist/server.js",
@@ -48,6 +51,7 @@
     "@types/qrcode": "^1.5.6",
     "prisma": "6.19.3",
     "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.7"
   }
 }

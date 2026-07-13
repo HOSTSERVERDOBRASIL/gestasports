@@ -190,11 +190,11 @@ function ageBucket(age: number | null | undefined) {
   return "60+";
 }
 
-function roundScore(value: number) {
+export function roundScore(value: number) {
   return Math.round(value * 10) / 10;
 }
 
-function classifyScore(score: number) {
+export function classifyScore(score: number) {
   if (score >= 9) {
     return "Destaque";
   }
@@ -208,6 +208,31 @@ function classifyScore(score: number) {
     return "Basico";
   }
   return "Inicial";
+}
+
+export function computeStatsScoreFromCounts(input: {
+  gamesRegistered: number;
+  gamesPresent: number;
+  confirmations: number;
+  goals: number;
+  assists: number;
+  wins: number;
+  gamesPresentForWinRate: number;
+  yellowCards: number;
+  redCards: number;
+}) {
+  const presencePercent = input.gamesRegistered > 0 ? Math.round((input.gamesPresent / input.gamesRegistered) * 100) : 0;
+  const confirmationPercent = input.gamesRegistered > 0 ? Math.round((input.confirmations / input.gamesRegistered) * 100) : 0;
+  const winRate = input.gamesPresentForWinRate > 0 ? Math.round((input.wins / input.gamesPresentForWinRate) * 100) : 0;
+
+  const presenceScore = Math.min(10, presencePercent / 10);
+  const confirmationScore = Math.min(10, confirmationPercent / 10);
+  const contributionScore = Math.min(10, input.goals * 0.8 + input.assists * 0.6);
+  const resultScore = Math.min(10, winRate / 10);
+  const disciplineScore = Math.max(1, 10 - input.yellowCards * 0.7 - input.redCards * 2.5);
+  const statsScore = roundScore((presenceScore * 0.24) + (confirmationScore * 0.16) + (contributionScore * 0.24) + (resultScore * 0.16) + (disciplineScore * 0.2));
+
+  return { presencePercent, confirmationPercent, winRate, statsScore };
 }
 
 async function computeAthleteTechnicalStats(athleteId: string, year: number) {
@@ -243,16 +268,18 @@ async function computeAthleteTechnicalStats(athleteId: string, year: number) {
   const wins = eligibleLineups.filter((lineup) => lineup.presence && !lineup.game.isDraw && lineup.game.winnerSide === lineup.side).length;
   const draws = eligibleLineups.filter((lineup) => lineup.presence && lineup.game.isDraw).length;
   const losses = Math.max(0, gamesPresent - wins - draws);
-  const presencePercent = gamesRegistered > 0 ? Math.round((gamesPresent / gamesRegistered) * 100) : 0;
-  const confirmationPercent = gamesRegistered > 0 ? Math.round((confirmations / gamesRegistered) * 100) : 0;
-  const winRate = gamesPresent > 0 ? Math.round((wins / gamesPresent) * 100) : 0;
 
-  const presenceScore = Math.min(10, presencePercent / 10);
-  const confirmationScore = Math.min(10, confirmationPercent / 10);
-  const contributionScore = Math.min(10, goals * 0.8 + assists * 0.6);
-  const resultScore = Math.min(10, winRate / 10);
-  const disciplineScore = Math.max(1, 10 - yellowCards * 0.7 - redCards * 2.5);
-  const statsScore = roundScore((presenceScore * 0.24) + (confirmationScore * 0.16) + (contributionScore * 0.24) + (resultScore * 0.16) + (disciplineScore * 0.2));
+  const { presencePercent, confirmationPercent, winRate, statsScore } = computeStatsScoreFromCounts({
+    gamesRegistered,
+    gamesPresent,
+    confirmations,
+    goals,
+    assists,
+    wins,
+    gamesPresentForWinRate: gamesPresent,
+    yellowCards,
+    redCards
+  });
 
   return {
     gamesRegistered,
@@ -484,7 +511,7 @@ function ageBucketBalancePenalty<T extends { age: number | null }>(red: T[], whi
   }, 0);
 }
 
-function teamBalanceScore<T extends { rating: number; technicalBalanceScore?: number | null; position: AthletePosition; secondaryPositions: AthletePosition[]; age: number | null }>(red: T[], white: T[]) {
+export function teamBalanceScore<T extends { rating: number; technicalBalanceScore?: number | null; position: AthletePosition; secondaryPositions: AthletePosition[]; age: number | null }>(red: T[], white: T[]) {
   const technicalLevelPenalty = Math.abs(teamTechnicalLevel(red) - teamTechnicalLevel(white)) * 55;
   const redAverageAge = averageAge(red);
   const whiteAverageAge = averageAge(white);

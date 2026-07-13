@@ -703,7 +703,7 @@ async function buildCollectionDashboard(month: number, year: number) {
   };
 }
 
-function collectionStageForPayment(payment: { dueDate: Date }) {
+export function collectionStageForPayment(payment: { dueDate: Date }) {
   const days = daysDiffFromToday(payment.dueDate);
   if (days === 3) {
     return CollectionStage.PRE_DUE_3;
@@ -1025,7 +1025,7 @@ function previousFinancialPeriods(month: number, year: number, range: z.infer<ty
   });
 }
 
-function percentDelta(current: number, previous: number) {
+export function percentDelta(current: number, previous: number) {
   if (previous === 0) {
     return current === 0 ? 0 : null;
   }
