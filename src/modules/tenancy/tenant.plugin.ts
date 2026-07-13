@@ -66,6 +66,21 @@ export const tenantPlugin = fp(async (app) => {
     request.tenant = tenant;
     tenantContext.enterWith({ tenantId: tenant?.id || null, bypassTenant: false });
   });
+
+  // Body parsing (which runs after onRequest, before preHandler) does not reliably preserve
+  // AsyncLocalStorage continuity in Fastify — confirmed empirically, and already worked around
+  // ad hoc for the PIX webhook route (see finance.routes.ts) and for authenticated routes (see
+  // applyAuthenticatedTenant in auth.plugin.ts). Any OTHER route with no preHandler of its own
+  // to re-enter the context — e.g. /auth/login, which has none — would otherwise run its handler
+  // with whatever tenant context happened to be left over from a PREVIOUS, unrelated request
+  // (reproduced: a login for tenant A immediately followed by a login attempt for tenant B ran
+  // tenant B's request under tenant A's tenantId). Re-entering here, globally, from
+  // `request.tenant` (a plain property set above, unaffected by the AsyncLocalStorage issue)
+  // guarantees every request starts its handler with a correct baseline; authenticate/authorize's
+  // own preHandler then overrides it with the JWT's own tenantId for protected routes.
+  app.addHook("preHandler", async (request) => {
+    tenantContext.enterWith({ tenantId: request.tenant?.id ?? null, bypassTenant: false });
+  });
 });
 
 declare module "fastify" {
