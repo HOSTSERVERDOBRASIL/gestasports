@@ -141,23 +141,23 @@ export function Topbar({
           >
             <span className="grid size-9 shrink-0 place-items-center rounded-full bg-red-600 text-xs font-black text-white">{initials}</span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-black leading-tight text-slate-950 dark:text-white">{userTitle}</span>
-              <span className="block truncate text-xs font-semibold text-slate-500 dark:text-slate-300">{userSubtitle}</span>
+              <span className="block truncate text-sm font-black leading-tight text-slate-950">{userTitle}</span>
+              <span className="block truncate text-xs font-semibold text-slate-500">{userSubtitle}</span>
             </span>
             <ChevronDown size={15} className={`shrink-0 text-slate-500 transition ${profileOpen ? "rotate-180" : ""}`} />
           </button>
 
           {profileOpen ? (
-            <div className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-full min-w-[15rem] rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-slate-950">
-              <div className="rounded-md bg-slate-100 px-3 py-2 dark:bg-white/[0.04]">
-                <p className="truncate text-sm font-black text-slate-950 dark:text-white">{user?.name ?? "Admin GestaSports"}</p>
-                <p className="truncate text-xs font-semibold text-slate-500 dark:text-slate-300">{user?.email ?? "-"}</p>
+            <div className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-full min-w-[15rem] rounded-lg border border-slate-200 bg-white p-2 shadow-xl">
+              <div className="rounded-md bg-slate-100 px-3 py-2">
+                <p className="truncate text-sm font-black text-slate-950">{user?.name ?? "Admin GestaSports"}</p>
+                <p className="truncate text-xs font-semibold text-slate-500">{user?.email ?? "-"}</p>
                 <p className="mt-1 text-[10px] font-black uppercase tracking-[0.08em] text-red-600">{userSubtitle}</p>
               </div>
               <Link
                 to={profilePathForRole(activeRole ?? user?.role)}
                 onClick={() => setProfileOpen(false)}
-                className="mt-2 flex min-h-10 items-center gap-2 rounded-md px-3 text-sm font-black text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/8"
+                className="mt-2 flex min-h-10 items-center gap-2 rounded-md px-3 text-sm font-black text-slate-700 hover:bg-slate-100"
               >
                 <UserCircle2 size={16} />
                 Ver perfil

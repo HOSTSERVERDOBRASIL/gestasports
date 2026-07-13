@@ -9,8 +9,20 @@ import { TenantThemeProvider } from "./context/TenantThemeContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { applyBrazilianPortugueseDefaults } from "./utils/locale";
 import { getTenantBasename } from "./utils/tenantPath";
+import { ApiError } from "./services/api";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => {
+        if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+          return false;
+        }
+        return failureCount < 3;
+      }
+    }
+  }
+});
 const tenantBasename = getTenantBasename();
 
 applyBrazilianPortugueseDefaults();

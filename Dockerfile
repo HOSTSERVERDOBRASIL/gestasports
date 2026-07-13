@@ -12,6 +12,9 @@ RUN npm --prefix frontend ci
 
 FROM deps AS build
 
+ARG DATABASE_URL
+ENV DATABASE_URL=${DATABASE_URL:-postgresql://user:password@localhost:5432/db}
+
 COPY prisma ./prisma
 COPY prisma.config.ts tsconfig.json ./
 COPY src ./src
@@ -37,4 +40,4 @@ COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 
 EXPOSE 3333
 
-CMD ["node", "dist/server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]

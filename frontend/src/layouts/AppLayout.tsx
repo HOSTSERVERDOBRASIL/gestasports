@@ -89,6 +89,7 @@ const pageChromeByPath: Array<[string, PageChrome]> = [
   ["/artilharia", { title: "Artilharia", subtitle: "Registre gols, assistências e acompanhe rankings por período.", actionLabel: "Lançar artilharia", actionPath: "/artilharia?launch=1" }],
   ["/assistencias", { title: "Assistencias", subtitle: "Acompanhe passes decisivos por atleta, jogo e periodo.", actionLabel: "Ver estatisticas", actionPath: "/estatisticas" }],
   ["/participacoes", { title: "Participacoes", subtitle: "Analise presencas, jogos disputados e recorrencia dos atletas.", actionLabel: "Ver rankings", actionPath: "/rankings" }],
+  ["/rankings", { title: "Rankings Gerais", subtitle: "Visão consolidada de gols, assistências e participação dos atletas por período.", actionLabel: "Ver estatisticas", actionPath: "/estatisticas" }],
   ["/disciplina", { title: "Disciplina", subtitle: "Registre cartões amarelos e vermelhos por jogo.", actionLabel: "Lançar disciplina", actionPath: "/disciplina?launch=1" }],
   ["/confrontos", { title: "Confrontos", subtitle: "Consulte jogos internos, participantes, escalações e desempenho por ano ou mês.", actionLabel: "Ver jogos", actionPath: "/jogos" }],
   ["/convocacoes", { title: "Convocações", subtitle: "Etapa de convocação vinculada aos jogos do clube.", actionLabel: "Ver jogos", actionPath: "/jogos" }],

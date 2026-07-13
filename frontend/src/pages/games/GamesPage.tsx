@@ -144,6 +144,7 @@ export function GamesPage() {
     "ALL" | Game["status"]
   >("ALL");
   const [gameSearch, setGameSearch] = useState("");
+  const [gamesPage, setGamesPage] = useState(1);
   const [showWholeYear, setShowWholeYear] = useState(false);
   const [historyYear, setHistoryYear] = useState(year);
   const [agendaViewMode, setAgendaViewMode] = useState<"LISTA" | "CALENDARIO">(
@@ -1741,6 +1742,18 @@ export function GamesPage() {
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [gameSearch, gameStatusFilter, games]);
+  const GAMES_PAGE_SIZE = 10;
+  const gamesTotalPages = Math.max(1, Math.ceil(listedGames.length / GAMES_PAGE_SIZE));
+  useEffect(() => {
+    setGamesPage(1);
+  }, [gameSearch, gameStatusFilter]);
+  useEffect(() => {
+    setGamesPage((current) => Math.min(current, gamesTotalPages));
+  }, [gamesTotalPages]);
+  const pagedGames = useMemo(
+    () => listedGames.slice((gamesPage - 1) * GAMES_PAGE_SIZE, gamesPage * GAMES_PAGE_SIZE),
+    [listedGames, gamesPage],
+  );
   function loadOfficialsFromGame(game: Game) {
     setShowExtendedOfficials(
       Boolean(
@@ -3469,7 +3482,7 @@ export function GamesPage() {
                 </button>
               </div>
             ) : null}
-            {listedGames.map((game) => {
+            {pagedGames.map((game) => {
               const hasLineup = (game.lineups ?? []).some(
                 (lineup) => lineup.role !== "ABSENT",
               );
@@ -3679,30 +3692,35 @@ export function GamesPage() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3">
             <p className="text-sm font-semibold text-slate-600">
-              Mostrando {listedGames.length > 0 ? 1 : 0} a {listedGames.length}{" "}
-              de {games.length} jogos
+              Mostrando {pagedGames.length > 0 ? (gamesPage - 1) * GAMES_PAGE_SIZE + 1 : 0} a{" "}
+              {(gamesPage - 1) * GAMES_PAGE_SIZE + pagedGames.length} de {listedGames.length} jogos
             </p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="grid size-9 place-items-center rounded-lg border border-slate-200 text-slate-400"
+                className="grid size-9 place-items-center rounded-lg border border-slate-200 text-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Página anterior"
+                disabled={gamesPage <= 1}
+                onClick={() => setGamesPage((current) => Math.max(1, current - 1))}
               >
                 <ChevronRight size={16} className="rotate-180" />
               </button>
-              {[1, 2, 3, 4].map((pageNumber) => (
+              {Array.from({ length: gamesTotalPages }, (_, index) => index + 1).map((pageNumber) => (
                 <button
                   key={pageNumber}
                   type="button"
-                  className={`grid size-9 place-items-center rounded-lg border text-sm font-black ${pageNumber === 1 ? "border-red-600 bg-red-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+                  className={`grid size-9 place-items-center rounded-lg border text-sm font-black ${pageNumber === gamesPage ? "border-red-600 bg-red-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+                  onClick={() => setGamesPage(pageNumber)}
                 >
                   {pageNumber}
                 </button>
               ))}
               <button
                 type="button"
-                className="grid size-9 place-items-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
+                className="grid size-9 place-items-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Próxima página"
+                disabled={gamesPage >= gamesTotalPages}
+                onClick={() => setGamesPage((current) => Math.min(gamesTotalPages, current + 1))}
               >
                 <ChevronRight size={16} />
               </button>
