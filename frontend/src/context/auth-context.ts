@@ -7,6 +7,7 @@ export type AuthContextValue = {
   activeRole: UserRole | null;
   loading: boolean;
   isAuthenticated: boolean;
+  sessionExpiringSoon: boolean;
   setActiveRole: (role: UserRole) => void;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;

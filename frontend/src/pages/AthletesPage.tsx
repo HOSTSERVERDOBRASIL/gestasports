@@ -5,6 +5,7 @@ import { Activity, AlertTriangle, ArrowLeft, Camera, CheckCircle2, CircleDollarS
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { apiRequest } from"../services/api";
 import { DateField } from "../components/ui/DateField";
+import { ReauthModal } from "../components/ui/ReauthModal";
 import { FullPitchBoard, type PitchPlayer } from "../components/ui/FullPitchBoard";
 import type {
   Associate,
@@ -526,6 +527,7 @@ function AthleteForm({
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(() => formFromAthlete(selected));
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const isContracted = form.linkType === "CONTRACTED";
   const associatesQuery = useQuery({
     queryKey: ["associates", "athlete-form"],
@@ -872,16 +874,19 @@ function AthleteForm({
               type="button"
               disabled={deleteMutation.isPending}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-black text-red-700 hover:bg-red-100 disabled:opacity-60"
-              onClick={() => {
-                const shouldDelete = window.confirm(`Deseja excluir o atleta ${selected.name}? Esta ação não pode ser desfeita.`);
-                if (shouldDelete) {
-                  void deleteMutation.mutateAsync();
-                }
-              }}
+              onClick={() => setShowDeleteConfirm(true)}
             >
               <Trash2 size={16} />
               {deleteMutation.isPending ? "Excluindo..." : "Excluir atleta"}
             </button>
+          ) : null}
+          {selected ? (
+            <ReauthModal
+              open={showDeleteConfirm}
+              action={`Excluir atleta ${selected.name}`}
+              onClose={() => setShowDeleteConfirm(false)}
+              onConfirm={() => deleteMutation.mutateAsync()}
+            />
           ) : null}
           <button type="submit" disabled={saveMutation.isPending} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-red-600 px-5 text-sm font-black text-white shadow-sm hover:bg-red-700 disabled:opacity-60">
             <Save size={16} />

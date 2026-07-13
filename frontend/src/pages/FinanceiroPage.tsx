@@ -1,13 +1,16 @@
 ﻿import { Fragment, useEffect, useMemo, useState, type FormEvent, type ReactNode } from"react";
 import { useMutation, useQuery, useQueryClient } from"@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from"react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, Clock3, Coins, Download, Eye, FileText, ListChecks, Pencil, PlusCircle, ReceiptText, Trash2, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, Clock3, Coins, Download, Eye, FileText, ListChecks, Pencil, PlusCircle, ReceiptText, RotateCcw, Trash2, TrendingDown, TrendingUp, UserRound, WalletCards } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { apiDownload, apiRequest } from"../services/api";
 import { formatCurrency, formatDateTime } from "../utils/formatters";
 import { PixCheckoutModal } from "../components/ui/PixCheckoutModal";
+import { Modal } from "../components/ui/Modal";
+import { ReauthModal } from "../components/ui/ReauthModal";
 import type {
   Associate,
+  AthleteProfile,
   CollectionDashboard,
   CollectionProductivity,
   CollectionRunResult,
@@ -15,6 +18,7 @@ import type {
   FinancialEntry,
   FinancePeriodReport,
   FinancialSummary,
+  GuestAthleteCharge,
   MonthlyFeeGenerationResult,
   MonthlyFeePaymentHistory,
   MonthlyFeePayment
@@ -58,7 +62,15 @@ type FinanceArea = FinanceAreaTabValue;
 const paymentStatusLabels: Record<MonthlyFeePayment["status"], string> = {
   PAID: "Pago",
   PENDING: "Não pago",
-  LATE: "Em atraso"
+  LATE: "Em atraso",
+  REFUNDED: "Estornado"
+};
+
+const guestChargeStatusLabels: Record<GuestAthleteCharge["status"], string> = {
+  PENDING: "Não pago",
+  PAID: "Pago",
+  OVERDUE: "Atrasado",
+  CANCELED: "Cancelado"
 };
 
 function daysUntil(dateIso: string) {
@@ -156,6 +168,10 @@ export function FinanceiroPage() {
   const [pixCheckoutModalOpen, setPixCheckoutModalOpen] = useState(false);
   const [expandedCollectionAssociateId, setExpandedCollectionAssociateId] = useState<string | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [refundTarget, setRefundTarget] = useState<MonthlyFeePayment | null>(null);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundError, setRefundError] = useState("");
+  const [deleteEntryTarget, setDeleteEntryTarget] = useState<FinancialEntry | null>(null);
 
   const [form, setForm] = useState<FinancialEntryFormState>({
     type:"EXPENSE" as EntryPayload["type"],
@@ -231,6 +247,18 @@ export function FinanceiroPage() {
     queryFn: () => apiRequest<MonthlyFeePaymentHistory>(`/finance/associates/${expandedCollectionAssociateId}/payment-history?limit=3`),
     enabled: Boolean(expandedCollectionAssociateId)
   });
+
+  const guestAthletesQuery = useQuery({
+    queryKey: ["athletes", "guest-billing", month, year],
+    queryFn: () => apiRequest<AthleteProfile[]>(`/athletes?month=${month}&year=${year}`)
+  });
+  const guestAthletes = (guestAthletesQuery.data ?? []).filter((athlete) => athlete.linkType === "GUEST" && athlete.guestBillingEnabled);
+
+  const guestChargesQuery = useQuery({
+    queryKey: ["finance-guest-charges", month, year],
+    queryFn: () => apiRequest<GuestAthleteCharge[]>(`/finance/guest-athletes/charges?month=${month}&year=${year}`)
+  });
+  const guestCharges = guestChargesQuery.data ?? [];
 
   const createMutation = useMutation({
     mutationFn: (payload: EntryPayload) =>
@@ -335,6 +363,50 @@ export function FinanceiroPage() {
       void queryClient.invalidateQueries({ queryKey: ["finance-collection-dashboard"] });
       void queryClient.invalidateQueries({ queryKey: ["finance-collection-productivity"] });
       void queryClient.invalidateQueries({ queryKey: ["finance-entries"] });
+      void queryClient.invalidateQueries({ queryKey: ["finance-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+    }
+  });
+
+  const refundPaymentMutation = useMutation({
+    mutationFn: ({ paymentId, reason }: { paymentId: string; reason: string }) =>
+      apiRequest<MonthlyFeePayment>(`/finance/monthly-fees/${paymentId}/refund`, {
+        method: "POST",
+        body: JSON.stringify({ reason })
+      }),
+    onSuccess: () => {
+      setRefundTarget(null);
+      setRefundReason("");
+      setRefundError("");
+      void queryClient.invalidateQueries({ queryKey: ["finance-monthly-fees"] });
+      void queryClient.invalidateQueries({ queryKey: ["finance-collection-dashboard"] });
+      void queryClient.invalidateQueries({ queryKey: ["finance-entries"] });
+      void queryClient.invalidateQueries({ queryKey: ["finance-summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+    },
+    onError: (mutationError) => {
+      setRefundError(mutationError instanceof Error ? mutationError.message : "Não foi possível estornar este pagamento.");
+    }
+  });
+
+  const generateGuestChargeMutation = useMutation({
+    mutationFn: (athleteId: string) =>
+      apiRequest<GuestAthleteCharge>(`/finance/guest-athletes/${athleteId}/charge`, {
+        method: "POST",
+        body: JSON.stringify({ month, year })
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["finance-guest-charges"] });
+    }
+  });
+
+  const settleGuestChargeMutation = useMutation({
+    mutationFn: (chargeId: string) =>
+      apiRequest<GuestAthleteCharge>(`/finance/guest-athletes/charges/${chargeId}/settle`, {
+        method: "PATCH"
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["finance-guest-charges"] });
       void queryClient.invalidateQueries({ queryKey: ["finance-summary"] });
       void queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
     }
@@ -713,6 +785,7 @@ export function FinanceiroPage() {
     { value: "RECEITAS" as const, label: "Receitas", icon: <TrendingUp size={16} />, description: "Entradas do período" },
     { value: "DESPESAS" as const, label: "Despesas", icon: <TrendingDown size={16} />, description: "Saídas e custos" },
     { value: "COBRANCAS" as const, label: "Cobranças", icon: <ListChecks size={16} />, description: "Fila e régua" },
+    { value: "CONVIDADOS" as const, label: "Convidados", icon: <UserRound size={16} />, description: "Cobrança avulsa de atletas convidados" },
     { value: "RELATORIOS" as const, label: "Relatórios", icon: <FileText size={16} />, description: "Prestação de contas" }
   ];
 
@@ -723,7 +796,7 @@ export function FinanceiroPage() {
       setFinanceView("OPERACAO");
       setFinanceOperationView("LANCAMENTOS");
       setTypeFilter(nextArea === "RECEITAS" ? "INCOME" : "EXPENSE");
-    } else if (nextArea === "MENSALIDADES" || nextArea === "COBRANCAS") {
+    } else if (nextArea === "MENSALIDADES" || nextArea === "COBRANCAS" || nextArea === "CONVIDADOS") {
       setFinanceView("ADMIN");
     } else if (nextArea === "RELATORIOS") {
       setFinanceView("REPORTS");
@@ -739,6 +812,7 @@ export function FinanceiroPage() {
   const showDashboardArea = financeArea === "DASHBOARD";
   const showMonthlyArea = financeArea === "MENSALIDADES";
   const showCollectionArea = financeArea === "COBRANCAS";
+  const showGuestArea = financeArea === "CONVIDADOS";
   const showAdminArea = showMonthlyArea || showCollectionArea;
   const showEntriesArea = financeArea === "RECEITAS" || financeArea === "DESPESAS" || (financeView === "OPERACAO" && financeOperationView === "LANCAMENTOS" && !showDashboardArea);
   const showEntryFormArea = financeView === "OPERACAO" && financeOperationView === "NOVO";
@@ -766,6 +840,65 @@ export function FinanceiroPage() {
           onClose={() => setPixCheckoutModalOpen(false)}
         />
       ) : null}
+      <Modal
+        open={Boolean(refundTarget)}
+        title="Estornar mensalidade"
+        onClose={() => setRefundTarget(null)}
+        footer={
+          <>
+            <button
+              type="button"
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-black text-slate-600 hover:bg-slate-50"
+              onClick={() => setRefundTarget(null)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-black text-white hover:bg-amber-700 disabled:opacity-60"
+              disabled={refundPaymentMutation.isPending || refundReason.trim().length < 3}
+              onClick={() => {
+                if (refundTarget) {
+                  void refundPaymentMutation.mutateAsync({ paymentId: refundTarget.id, reason: refundReason.trim() });
+                }
+              }}
+            >
+              {refundPaymentMutation.isPending ? "Estornando..." : "Confirmar estorno"}
+            </button>
+          </>
+        }
+      >
+        {refundTarget ? (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-700">
+              Estornar a mensalidade de <strong>{refundTarget.associateName}</strong> ({String(refundTarget.month).padStart(2, "0")}/{refundTarget.year}, {formatCurrency(refundTarget.amountCents)}).
+              O associado voltará para o status "Em atraso" e um lançamento de despesa será criado.
+            </p>
+            <label className="block text-sm font-bold text-slate-700">
+              Motivo do estorno
+              <textarea
+                className="mt-1 min-h-20 w-full rounded-lg border border-slate-200 bg-white px-3 py-2"
+                value={refundReason}
+                onChange={(event) => setRefundReason(event.target.value)}
+                minLength={3}
+                required
+              />
+            </label>
+            {refundError ? <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-sm font-bold text-red-700">{refundError}</p> : null}
+          </div>
+        ) : null}
+      </Modal>
+      <ReauthModal
+        open={Boolean(deleteEntryTarget)}
+        action={`Excluir lançamento: ${deleteEntryTarget?.description ?? ""}`}
+        onClose={() => setDeleteEntryTarget(null)}
+        onConfirm={async () => {
+          if (deleteEntryTarget) {
+            await deleteEntryMutation.mutateAsync(deleteEntryTarget.id);
+            setDeleteEntryTarget(null);
+          }
+        }}
+      />
       {showDashboardArea ? (
       <>
       <Surface className="overflow-hidden border-slate-300" padding="none">
@@ -1650,8 +1783,9 @@ export function FinanceiroPage() {
                   <th className="px-3 py-2">Associado</th>
                   <th className="px-3 py-2">Vencimento</th>
                   <th className="px-3 py-2">Valor</th>
+                  <th className="px-3 py-2">Multa</th>
                   <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2 text-right">Pix</th>
+                  <th className="px-3 py-2 text-right">Ação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -1660,25 +1794,39 @@ export function FinanceiroPage() {
                     <td className="px-3 py-2">
                       <p className="font-semibold text-slate-900">{payment.associateName}</p>
                       <p className="text-xs text-slate-500">{payment.phone ?? payment.email ?? "Sem contato"}</p>
+                      {payment.isProrataMonth ? (
+                        <span className="mt-1 inline-block rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">Pro-rata</span>
+                      ) : null}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">{new Date(payment.dueDate).toLocaleDateString("pt-BR")}</td>
                     <td className="whitespace-nowrap px-3 py-2 font-semibold">{formatCurrency(payment.amountCents)}</td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      {payment.lateFeeApplied ? (
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-700">
+                          Com multa · {formatCurrency(payment.lateFeeAppliedCents)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">-</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2">
-                      <span className={`rounded-full px-2 py-1 text-xs font-bold ${payment.status === "PAID" ? "bg-emerald-50 text-emerald-700" : payment.status === "LATE" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"}`}>
+                      <span className={`rounded-full px-2 py-1 text-xs font-bold ${payment.status === "PAID" ? "bg-emerald-50 text-emerald-700" : payment.status === "LATE" ? "bg-red-50 text-red-700" : payment.status === "REFUNDED" ? "bg-slate-200 text-slate-600" : "bg-slate-100 text-slate-700"}`}>
                         {paymentStatusLabels[payment.status]}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex flex-wrap justify-end gap-1">
-                        <button
-                          type="button"
-                          className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-                          disabled={payment.status === "PAID" || directChargeMutation.isPending}
-                          onClick={() => void handleGeneratePix(payment.associateId)}
-                        >
-                          {payment.status === "PAID" ? "Pago" : "Gerar PIX"}
-                        </button>
-                        {payment.status !== "PAID" ? (
+                        {payment.status !== "PAID" && payment.status !== "REFUNDED" ? (
+                          <button
+                            type="button"
+                            className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                            disabled={directChargeMutation.isPending}
+                            onClick={() => void handleGeneratePix(payment.associateId)}
+                          >
+                            Gerar PIX
+                          </button>
+                        ) : null}
+                        {payment.status !== "PAID" && payment.status !== "REFUNDED" ? (
                           <button
                             type="button"
                             className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
@@ -1688,6 +1836,20 @@ export function FinanceiroPage() {
                             Baixa manual
                           </button>
                         ) : null}
+                        {payment.status === "PAID" ? (
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                            onClick={() => {
+                              setRefundTarget(payment);
+                              setRefundReason("");
+                              setRefundError("");
+                            }}
+                          >
+                            <RotateCcw size={12} /> Estornar
+                          </button>
+                        ) : null}
+                        {payment.status === "REFUNDED" ? <span className="text-xs text-slate-400">Estornado</span> : null}
                       </div>
                     </td>
                   </tr>
@@ -1753,6 +1915,95 @@ export function FinanceiroPage() {
             </p>
           </div>
       </article>
+      ) : null}
+
+      {showGuestArea ? (
+        <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-black text-slate-950">Cobrança de atletas convidados</h3>
+              <p className="mt-1 text-sm font-semibold text-slate-500">
+                Atletas com vínculo "Convidado" e cobrança por participação habilitada no perfil. Gere uma cobrança avulsa por atleta e dê baixa quando pago.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-3 py-2">Atleta</th>
+                  <th className="px-3 py-2">Valor por participação</th>
+                  <th className="px-3 py-2 text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {guestAthletes.map((athlete) => (
+                  <tr key={athlete.id}>
+                    <td className="px-3 py-2 font-semibold text-slate-900">{athlete.name}</td>
+                    <td className="px-3 py-2">{formatCurrency(athlete.guestFeeCents)}</td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        type="button"
+                        className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                        disabled={generateGuestChargeMutation.isPending}
+                        onClick={() => void generateGuestChargeMutation.mutateAsync(athlete.id)}
+                      >
+                        Gerar cobrança
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!guestAthletesQuery.isLoading && guestAthletes.length === 0 ? (
+              <p className="px-3 py-4 text-sm text-slate-500">Nenhum atleta convidado com cobrança habilitada. Ative "Cobrar por participação" no perfil do atleta.</p>
+            ) : null}
+          </div>
+
+          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-3 py-2">Atleta</th>
+                  <th className="px-3 py-2">Descrição</th>
+                  <th className="px-3 py-2">Valor</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2 text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {guestCharges.map((charge) => (
+                  <tr key={charge.id}>
+                    <td className="px-3 py-2 font-semibold text-slate-900">{charge.athleteName ?? "-"}</td>
+                    <td className="px-3 py-2 text-slate-600">{charge.description}</td>
+                    <td className="px-3 py-2 font-semibold">{formatCurrency(charge.amountCents)}</td>
+                    <td className="px-3 py-2">
+                      <span className={`rounded-full px-2 py-1 text-xs font-bold ${charge.status === "PAID" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-700"}`}>
+                        {guestChargeStatusLabels[charge.status]}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      {charge.status !== "PAID" ? (
+                        <button
+                          type="button"
+                          className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                          disabled={settleGuestChargeMutation.isPending}
+                          onClick={() => void settleGuestChargeMutation.mutateAsync(charge.id)}
+                        >
+                          Baixar
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!guestChargesQuery.isLoading && guestCharges.length === 0 ? (
+              <p className="px-3 py-4 text-sm text-slate-500">Nenhuma cobrança de convidado neste período.</p>
+            ) : null}
+          </div>
+        </article>
       ) : null}
 
       {financeView === "REPORTS" ? (
@@ -2019,12 +2270,7 @@ export function FinanceiroPage() {
                           type="button"
                           className="grid size-8 shrink-0 place-items-center rounded border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
                           disabled={deleteEntryMutation.isPending}
-                          onClick={() => {
-                            if (!window.confirm("Excluir este lançamento? Esta ação não pode ser desfeita.")) {
-                              return;
-                            }
-                            void deleteEntryMutation.mutateAsync(entry.id);
-                          }}
+                          onClick={() => setDeleteEntryTarget(entry)}
                           title="Excluir lançamento"
                           aria-label="Excluir lançamento"
                         >
@@ -2085,12 +2331,7 @@ export function FinanceiroPage() {
                       type="button"
                       className="rounded border border-red-200 bg-white px-2 py-1 font-semibold text-red-700 hover:bg-red-50"
                       disabled={deleteEntryMutation.isPending}
-                      onClick={() => {
-                        if (!window.confirm("Excluir este lançamento? Esta ação não pode ser desfeita.")) {
-                          return;
-                        }
-                        void deleteEntryMutation.mutateAsync(entry.id);
-                      }}
+                      onClick={() => setDeleteEntryTarget(entry)}
                     >
                       Remover
                     </button>

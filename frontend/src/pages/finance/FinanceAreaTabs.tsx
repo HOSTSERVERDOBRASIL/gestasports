@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Surface } from "../../components/ui/AppUI";
 
-export type FinanceAreaTabValue = "DASHBOARD" | "MENSALIDADES" | "RECEITAS" | "DESPESAS" | "COBRANCAS" | "RELATORIOS";
+export type FinanceAreaTabValue = "DASHBOARD" | "MENSALIDADES" | "RECEITAS" | "DESPESAS" | "COBRANCAS" | "CONVIDADOS" | "RELATORIOS";
 
 export type FinanceAreaTab = {
   value: FinanceAreaTabValue;

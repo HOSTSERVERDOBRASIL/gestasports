@@ -8,7 +8,33 @@ export type AssociateFormState = {
   monthlyFeeBRL: string;
   status: AssociateStatus;
   boardRoleId: string;
+  joinDate: string;
 };
+
+function toCents(value: string) {
+  return Math.round(Number(value.replace(/\./g, "").replace(",", ".")) * 100);
+}
+
+function prorataPreview(joinDate: string, monthlyFeeBRL: string) {
+  if (!joinDate) {
+    return null;
+  }
+
+  const parsed = new Date(`${joinDate}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  const daysInMonth = new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth() + 1, 0)).getUTCDate();
+  const remainingDays = daysInMonth - parsed.getUTCDate() + 1;
+  if (remainingDays >= daysInMonth) {
+    return null;
+  }
+
+  const monthlyFeeCents = toCents(monthlyFeeBRL) || 0;
+  const prorataFeeCents = Math.round((monthlyFeeCents * remainingDays) / daysInMonth);
+  return { remainingDays, daysInMonth, prorataFeeCents };
+}
 
 type AssociateEditorProps = {
   form: AssociateFormState;
@@ -33,6 +59,8 @@ export function AssociateEditor({
     event.preventDefault();
     onSubmit();
   }
+
+  const prorata = !editing ? prorataPreview(form.joinDate, form.monthlyFeeBRL) : null;
 
   return (
     <article className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -63,6 +91,22 @@ export function AssociateEditor({
           Mensalidade (R$)
           <input className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2" value={form.monthlyFeeBRL} onChange={(event) => onChange({ ...form, monthlyFeeBRL: event.target.value })} />
         </label>
+        {!editing ? (
+          <label className="block text-sm font-medium text-slate-600">
+            Data de ingresso
+            <input
+              type="date"
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+              value={form.joinDate}
+              onChange={(event) => onChange({ ...form, joinDate: event.target.value })}
+            />
+            {prorata ? (
+              <span className="mt-1 block text-xs font-semibold text-blue-700">
+                Mensalidade do 1º mês: R$ {(prorata.prorataFeeCents / 100).toFixed(2).replace(".", ",")} (pro-rata de {prorata.remainingDays} dias restantes de {prorata.daysInMonth} dias do mês)
+              </span>
+            ) : null}
+          </label>
+        ) : null}
         <label className="block text-sm font-medium text-slate-600">
           Status
           <select className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2" value={form.status} onChange={(event) => onChange({ ...form, status: event.target.value as AssociateStatus })}>

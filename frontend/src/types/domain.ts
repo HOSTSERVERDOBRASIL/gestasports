@@ -487,7 +487,7 @@ export type AthleteLinkType = "ASSOCIATE" | "CONTRACTED" | "GUEST";
 export type AthleteStatus = "ACTIVE" | "INACTIVE" | "DELINQUENT" | "SUSPENDED";
 export type AthleteMedicalStatus = "CLEARED" | "OBSERVATION" | "INJURED" | "TREATMENT";
 export type AssociateStatus = "ACTIVE" | "LATE" | "INACTIVE";
-export type PaymentStatus = "PAID" | "PENDING" | "LATE";
+export type PaymentStatus = "PAID" | "PENDING" | "LATE" | "REFUNDED";
 export type GameType = "INTERNAL" | "EXTERNAL";
 export type GameMode = "INTERNAL_SPLIT" | "FRIENDLY" | "CHAMPIONSHIP" | "TOURNAMENT" | "TRAINING" | "EXTERNAL_FRIENDLY";
 export type TeamSide = "RED" | "WHITE" | "EXTERNAL";
@@ -804,6 +804,8 @@ export type PaymentSettings = {
   pixCity: string;
   pixAutoSettleSeconds: number;
   monthlyDueDay: number;
+  lateFeeCents: number;
+  lateFeePercent: number;
 };
 
 export type MonthlyFeePayment = {
@@ -820,6 +822,23 @@ export type MonthlyFeePayment = {
   dueDate: string;
   paidAt: string | null;
   status: PaymentStatus;
+  lateFeeAppliedCents: number;
+  lateFeeApplied: boolean;
+  isProrataMonth: boolean;
+  prorataFee: number | null;
+};
+
+export type GuestAthleteCharge = {
+  id: string;
+  athleteId: string | null;
+  athleteName: string | null;
+  description: string;
+  amountCents: number;
+  competenceMonth: number;
+  competenceYear: number;
+  status: "PENDING" | "PAID" | "OVERDUE" | "CANCELED";
+  paidAt: string | null;
+  createdAt: string;
 };
 
 export type MonthlyFeeGenerationResult = {

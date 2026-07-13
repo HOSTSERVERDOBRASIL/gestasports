@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from"@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from"react-router-dom";
-import { AlertTriangle, Ban, CalendarDays, CircleEqual, Eye, MapPin, Save, Search, ShieldCheck, Shirt, Target, Trophy, X } from"lucide-react";
+import { AlertTriangle, Ban, CalendarDays, CircleEqual, Download, Eye, MapPin, Save, Search, ShieldCheck, Shirt, Target, Trophy, X } from"lucide-react";
 import { useEffect, useState } from"react";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from"recharts";
 import { apiRequest } from"../services/api";
 import type { AthleteProfile, CompetitionRankingSummary, ConfrontationSummary, DisciplineSummary, Game } from"../types/domain";
+import { downloadCsv } from "../utils/csv";
 import { FullPitchBoard } from "../components/ui/FullPitchBoard";
 import type { PitchPlayer } from "../components/ui/FullPitchBoard";
 
@@ -488,7 +489,24 @@ export function ArtilhariaPageReal() {
         <article className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <h2 className="text-xl font-bold text-slate-950">Ranking completo</h2>
-            <span className="text-sm font-semibold text-slate-500">Top {rankingList.length || 0}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-slate-500">Top {rankingList.length || 0}</span>
+              {scorers.length > 0 ? (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                  onClick={() =>
+                    downloadCsv(
+                      "artilharia.csv",
+                      ["Nome", "Jogos", "Gols", "Assistências", "Média"],
+                      scorers.map((scorer) => [scorer.name, scorer.games, scorer.goals, scorer.assists, scorer.goalAverage.toFixed(2)])
+                    )
+                  }
+                >
+                  <Download size={12} /> Exportar CSV
+                </button>
+              ) : null}
+            </div>
           </div>
           <div className="mt-4 space-y-2">
             {rankingList.map((scorer, index) => {
@@ -519,10 +537,27 @@ export function ArtilhariaPageReal() {
       </div>
 
       <article className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <h2 className="flex items-center gap-2 text-xl font-bold text-slate-950">
-          <CircleEqual size={20} className="text-emerald-600" />
-          Ranking de vitórias
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-xl font-bold text-slate-950">
+            <CircleEqual size={20} className="text-emerald-600" />
+            Ranking de vitórias
+          </h2>
+          {data.wins.length > 0 ? (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              onClick={() =>
+                downloadCsv(
+                  "aproveitamento.csv",
+                  ["Nome", "Jogos", "Vitórias", "Empates", "Derrotas", "Aproveitamento"],
+                  data.wins.map((item) => [item.name, item.games, item.wins, item.draws, item.losses, `${item.winRate}%`])
+                )
+              }
+            >
+              <Download size={12} /> Exportar CSV
+            </button>
+          ) : null}
+        </div>
         <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
           <table className="min-w-[720px] w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
@@ -694,7 +729,24 @@ export function DisciplinaPageReal() {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(min(100%,24rem),24rem)]">
         <article className="min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="text-xl font-bold text-slate-950">Ranking disciplinar ({periodLabel})</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-xl font-bold text-slate-950">Ranking disciplinar ({periodLabel})</h2>
+            {data.ranking.length > 0 ? (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                onClick={() =>
+                  downloadCsv(
+                    "disciplina.csv",
+                    ["Nome", "Amarelos", "Vermelhos", "Suspensões", "Pontos"],
+                    data.ranking.map((item) => [item.name, item.yellowCards, item.redCards, item.suspensions, item.fairPlayScore])
+                  )
+                }
+              >
+                <Download size={12} /> Exportar CSV
+              </button>
+            ) : null}
+          </div>
           <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200">
             <table className="min-w-[620px] w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
@@ -962,6 +1014,28 @@ export function ConfrontosPageReal() {
               />
             </label>
             <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">{listedGames.length}/{games.length} jogo(s)</span>
+            {listedGames.length > 0 ? (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                onClick={() =>
+                  downloadCsv(
+                    "confrontos.csv",
+                    ["Data", "Time A", "Time B", "Placar A", "Placar B", "Resultado"],
+                    listedGames.map((game) => [
+                      formatDate(game.date),
+                      game.redTeamName || "Time A",
+                      game.whiteTeamName || "Time B",
+                      game.redScore ?? "",
+                      game.whiteScore ?? "",
+                      game.isDraw ? "Empate" : game.winnerSide === "RED" ? game.redTeamName || "Time A" : game.winnerSide === "WHITE" ? game.whiteTeamName || "Time B" : game.status
+                    ])
+                  )
+                }
+              >
+                <Download size={12} /> Exportar CSV
+              </button>
+            ) : null}
           </div>
         </div>
 

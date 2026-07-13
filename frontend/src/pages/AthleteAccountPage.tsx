@@ -63,7 +63,8 @@ const athleteStatusLabels: Record<AthleteStatus, string> = {
 const paymentStatusLabels: Record<PaymentStatus, string> = {
   PAID: "Pago",
   PENDING: "Pendente",
-  LATE: "Em atraso"
+  LATE: "Em atraso",
+  REFUNDED: "Estornado"
 };
 
 const associateStatusLabels: Record<AssociateStatus, string> = {

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from"@tanstack/react-query";
 import { Link, useLocation, useNavigate } from"react-router-dom";
 import { Check, Palette, Settings, ShieldCheck, Shuffle, Upload, UserPlus } from"lucide-react";
 import { apiRequest } from"../services/api";
+import { toast } from "../components/ui/toast-store";
 import { useTheme } from "../hooks/useTheme";
 import { getTenantBasename } from "../utils/tenantPath";
 import { analyzeTeamKitHarmony, encodeTeamKit, parseTeamKit, type CenterBarsVariant, type ShirtStyleDirection, type UniformStyle } from "../utils/teamColors";
@@ -122,7 +123,8 @@ export function AssociadosPageReal() {
     phone:"",
     monthlyFeeBRL:"60,00",
     status:"ACTIVE" as AssociateStatus,
-    boardRoleId:""
+    boardRoleId:"",
+    joinDate:""
   });
 
   const associatesQuery = useQuery({
@@ -142,7 +144,7 @@ export function AssociadosPageReal() {
 
   const createOrUpdateMutation = useMutation({
     mutationFn: () =>
-      apiRequest<Associate>(editorTarget && editorTarget !== "new" ? `/associates/${editorTarget}` :"/associates", {
+      apiRequest<Associate & { prorataApplied?: boolean; prorataFeeCents?: number }>(editorTarget && editorTarget !== "new" ? `/associates/${editorTarget}` :"/associates", {
         method: editorTarget && editorTarget !== "new" ? "PATCH" : "POST",
         body: JSON.stringify({
           name: form.name,
@@ -150,13 +152,17 @@ export function AssociadosPageReal() {
           phone: form.phone || undefined,
           monthlyFeeCents: toCents(form.monthlyFeeBRL) || 6000,
           status: form.status,
-          boardRoleId: form.boardRoleId || undefined
+          boardRoleId: form.boardRoleId || undefined,
+          ...(!editorTarget || editorTarget === "new" ? { joinDate: form.joinDate || undefined } : {})
         })
       }),
-    onSuccess: () => {
+    onSuccess: (response) => {
         setEditorTarget(null);
-      setForm({ name:"", email:"", phone:"", monthlyFeeBRL:"60,00", status:"ACTIVE", boardRoleId:"" });
+      setForm({ name:"", email:"", phone:"", monthlyFeeBRL:"60,00", status:"ACTIVE", boardRoleId:"", joinDate:"" });
       void queryClient.invalidateQueries({ queryKey: ["associates"] });
+      if (response.prorataApplied) {
+        toast.info(`Mensalidade do 1º mês gerada com pro-rata: R$ ${(response.prorataFeeCents! / 100).toFixed(2).replace(".", ",")}`);
+      }
         navigate("/associados");
     }
   });
@@ -169,7 +175,7 @@ export function AssociadosPageReal() {
     onSuccess: () => {
       if (editorTarget) {
         setEditorTarget(null);
-        setForm({ name:"", email:"", phone:"", monthlyFeeBRL:"60,00", status:"ACTIVE", boardRoleId:"" });
+        setForm({ name:"", email:"", phone:"", monthlyFeeBRL:"60,00", status:"ACTIVE", boardRoleId:"", joinDate:"" });
       }
       void queryClient.invalidateQueries({ queryKey: ["associates"] });
     }
@@ -299,7 +305,7 @@ export function AssociadosPageReal() {
           onChange={setForm}
           onCancel={() => {
             setEditorTarget(null);
-            setForm({ name:"", email:"", phone:"", monthlyFeeBRL:"60,00", status:"ACTIVE", boardRoleId:"" });
+            setForm({ name:"", email:"", phone:"", monthlyFeeBRL:"60,00", status:"ACTIVE", boardRoleId:"", joinDate:"" });
             navigate("/associados");
           }}
           onSubmit={() => void createOrUpdateMutation.mutateAsync()}
@@ -317,7 +323,7 @@ export function AssociadosPageReal() {
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 text-sm font-black text-white shadow-sm hover:bg-red-700"
               onClick={() => {
                 setEditorTarget("new");
-                setForm({ name:"", email:"", phone:"", monthlyFeeBRL:"60,00", status:"ACTIVE", boardRoleId:"" });
+                setForm({ name:"", email:"", phone:"", monthlyFeeBRL:"60,00", status:"ACTIVE", boardRoleId:"", joinDate:"" });
                 navigate("/associados?edit=new");
               }}
             >
@@ -377,7 +383,8 @@ export function AssociadosPageReal() {
                 phone: associate.phone ?? "",
                 monthlyFeeBRL: String((associate.monthlyFeeCents / 100).toFixed(2)).replace(".", ","),
                 status: associate.status,
-                boardRoleId: associate.boardRoleId ?? ""
+                boardRoleId: associate.boardRoleId ?? "",
+                joinDate: ""
               });
               navigate(`/associados?edit=${associate.id}`);
             }}
@@ -704,6 +711,8 @@ export function ConfiguracoesPageReal({ initialSection = "club", standaloneUnifo
     pixCity: string;
     pixAutoSettleSeconds: string;
     monthlyDueDay: string;
+    lateFeeBRL: string;
+    lateFeePercent: string;
   }>>({});
   const [tenantBrandingForm, setTenantBrandingForm] = useState<Partial<{
     brandName: string;
@@ -883,7 +892,9 @@ export function ConfiguracoesPageReal({ initialSection = "club", standaloneUnifo
     pixReceiverName: pixSettingsForm.pixReceiverName ?? pixSettings?.pixReceiverName ?? "GestaSports",
     pixCity: pixSettingsForm.pixCity ?? pixSettings?.pixCity ?? "Florianopolis",
     pixAutoSettleSeconds: pixSettingsForm.pixAutoSettleSeconds ?? String(pixSettings?.pixAutoSettleSeconds ?? 20),
-    monthlyDueDay: pixSettingsForm.monthlyDueDay ?? String(pixSettings?.monthlyDueDay ?? 10)
+    monthlyDueDay: pixSettingsForm.monthlyDueDay ?? String(pixSettings?.monthlyDueDay ?? 10),
+    lateFeeBRL: pixSettingsForm.lateFeeBRL ?? String(((pixSettings?.lateFeeCents ?? 0) / 100).toFixed(2)).replace(".", ","),
+    lateFeePercent: pixSettingsForm.lateFeePercent ?? String(pixSettings?.lateFeePercent ?? 0)
   };
 
   function handleUniformImageUpload(field: "uniform1ImageUrl" |"uniform2ImageUrl", file: File | null) {
@@ -1070,7 +1081,9 @@ export function ConfiguracoesPageReal({ initialSection = "club", standaloneUnifo
           pixReceiverName: currentPixSettingsForm.pixReceiverName,
           pixCity: currentPixSettingsForm.pixCity,
           pixAutoSettleSeconds: Number(currentPixSettingsForm.pixAutoSettleSeconds) || 20,
-          monthlyDueDay: Number(currentPixSettingsForm.monthlyDueDay) || 10
+          monthlyDueDay: Number(currentPixSettingsForm.monthlyDueDay) || 10,
+          lateFeeCents: toCents(currentPixSettingsForm.lateFeeBRL) || 0,
+          lateFeePercent: Number(currentPixSettingsForm.lateFeePercent) || 0
         })
       }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["finance-pix-settings"] })
@@ -2290,6 +2303,30 @@ export function ConfiguracoesPageReal({ initialSection = "club", standaloneUnifo
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
                   value={currentPixSettingsForm.pixAutoSettleSeconds}
                   onChange={(event) => setPixSettingsForm((prev) => ({ ...prev, pixAutoSettleSeconds: event.target.value }))}
+                />
+              </label>
+            </div>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="text-sm font-medium text-slate-600">
+                Multa fixa por atraso (R$)
+                <input
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                  value={currentPixSettingsForm.lateFeeBRL}
+                  onChange={(event) => setPixSettingsForm((prev) => ({ ...prev, lateFeeBRL: event.target.value }))}
+                  placeholder="0,00"
+                />
+              </label>
+              <label className="text-sm font-medium text-slate-600">
+                Multa percentual por atraso (%)
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.1"
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                  value={currentPixSettingsForm.lateFeePercent}
+                  onChange={(event) => setPixSettingsForm((prev) => ({ ...prev, lateFeePercent: event.target.value }))}
                 />
               </label>
             </div>
