@@ -11,6 +11,9 @@ type DateFieldProps = {
   className?: string;
   inputClassName?: string;
   placeholder?: string;
+  min?: string;
+  max?: string;
+  id?: string;
 };
 
 function pad(value: string) {
@@ -74,9 +77,13 @@ export function DateField({
   required,
   className = "",
   inputClassName = "",
-  placeholder
+  placeholder,
+  min,
+  max,
+  id
 }: DateFieldProps) {
-  const inputId = useId();
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
   const pickerRef = useRef<HTMLInputElement>(null);
   const [displayValue, setDisplayValue] = useState(() => valueToBrazilian(value, mode));
 
@@ -144,6 +151,8 @@ export function DateField({
         ref={pickerRef}
         type={mode}
         value={value}
+        min={min}
+        max={max}
         onChange={(event) => onChange(event.target.value)}
         className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
         tabIndex={-1}
