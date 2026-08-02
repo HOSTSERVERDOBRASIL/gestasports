@@ -3,35 +3,67 @@
 
 :root {
   font-family: "Plus Jakarta Sans", "Sora", "Segoe UI", sans-serif;
-  --bg-a: #f8f9fc;
+  --bg-a: #f5f7fb;
   --bg-b: #eef2fb;
   --stroke: rgba(20, 27, 45, 0.08);
   --card: #ffffff;
   --text: #0f172a;
   --muted: #64748b;
-  --shell-bg: #f3f6fb;
-  --shell-bg-muted: #e9eef7;
+  /* Shell — page background (behind cards) */
+  --shell-bg: #f5f7fb;
+  --shell-bg-muted: #eef2f9;
   --shell-elevated: #ffffff;
-  --shell-border: rgba(15, 23, 42, 0.14);
+  --shell-border: rgba(15, 23, 42, 0.1);
   --shell-text: #0f172a;
-  --shell-subtext: #475569;
-  --shell-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+  --shell-subtext: #64748b;
+  --shell-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+  /* Surface system */
   --surface-1: #ffffff;
   --surface-2: #f8fbff;
   --surface-muted: #f1f5f9;
-  --border-soft: rgba(15, 23, 42, 0.12);
-  --border-strong: rgba(15, 23, 42, 0.2);
-  --input-bg: #f8fbff;
+  --border-soft: rgba(15, 23, 42, 0.1);
+  --border-strong: rgba(15, 23, 42, 0.18);
+  /* Inputs */
+  --input-bg: #ffffff;
   --input-text: #0f172a;
   --input-border: rgba(15, 23, 42, 0.16);
   --focus-ring: rgba(239, 68, 68, 0.18);
-  --overlay-soft: rgba(15, 23, 42, 0.04);
-  --overlay-mid: rgba(15, 23, 42, 0.08);
-  --brand-primary: #08255b;
-  --brand-menu: #08255b;
+  /* Overlays */
+  --overlay-soft: rgba(15, 23, 42, 0.03);
+  --overlay-mid: rgba(15, 23, 42, 0.07);
+  /* Brand */
+  --brand-primary: #dc2626;
+  --brand-menu: #111118;
   --brand-secondary: #08255b;
-  --brand-accent: #55ad32;
-  --brand-radius: 1.125rem;
+  --brand-accent: #dc2626;
+  --brand-radius: 0.5rem;
+  /* KPI icon pill colors */
+  --kpi-red: #fef2f2;
+  --kpi-red-icon: #dc2626;
+  --kpi-orange: #fff7ed;
+  --kpi-orange-icon: #ea580c;
+  --kpi-amber: #fffbeb;
+  --kpi-amber-icon: #d97706;
+  --kpi-green: #f0fdf4;
+  --kpi-green-icon: #16a34a;
+  --kpi-teal: #f0fdfa;
+  --kpi-teal-icon: #0d9488;
+  --kpi-blue: #eff6ff;
+  --kpi-blue-icon: #2563eb;
+  --kpi-indigo: #eef2ff;
+  --kpi-indigo-icon: #4f46e5;
+  --kpi-purple: #faf5ff;
+  --kpi-purple-icon: #9333ea;
+  /* Fixed semantic colors — deliberately NOT tenant-configurable, so a
+     destructive/success/warning state always reads correctly no matter
+     which brand color a tenant picks. */
+  --color-danger: #dc2626;
+  --color-danger-strong: #b91c1c;
+  --color-danger-soft: #fef2f2;
+  --color-success: #15803d;
+  --color-success-soft: #f0fdf4;
+  --color-warning: #b45309;
+  --color-warning-soft: #fffbeb;
   --brand-font: "Plus Jakarta Sans", "Sora", "Segoe UI", sans-serif;
   --spike-surface: #f0f5f9;
   --spike-card: #ffffff;
@@ -659,44 +691,68 @@ tbody tr {
 }
 
 .fl-sidebar-shell {
-  background: var(--shell-bg-muted);
+  background: #111118;
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 2px 0 24px rgba(0, 0, 0, 0.18);
+}
+
+body[data-menu-style="brand"] .fl-sidebar-shell {
+  background: #111118;
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+body[data-menu-style="light"] .fl-sidebar-shell {
+  background: var(--shell-elevated);
   color: var(--shell-text);
   border-color: var(--shell-border);
   box-shadow: var(--shell-shadow);
 }
 
-body[data-menu-style="brand"] .fl-sidebar-shell {
-  background: var(--shell-bg-muted);
-}
-
-body[data-menu-style="light"] .fl-sidebar-shell {
-  background: var(--shell-elevated);
-}
-
 body[data-menu-style="glass"] .fl-sidebar-shell {
-  background: color-mix(in oklab, var(--shell-elevated) 92%, var(--brand-menu) 8%);
-  backdrop-filter: blur(14px);
+  background: color-mix(in oklab, #111118 88%, var(--brand-menu) 12%);
+  color: #e2e8f0;
+  backdrop-filter: blur(18px);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .fl-topbar {
-  background: var(--shell-bg);
+  background: var(--shell-elevated);
   color: var(--shell-text);
   border-bottom: 1px solid var(--shell-border);
+  min-height: 4.5rem;
+}
+
+body[data-theme="dark"] .fl-topbar {
+  background: #1a1b24;
+  border-bottom-color: rgba(255, 255, 255, 0.07);
 }
 
 .fl-topbar-title {
   color: var(--shell-text);
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
 }
 
 .fl-topbar-subtitle {
   color: var(--shell-subtext);
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .fl-topbar-control,
 .fl-topbar-icon-btn {
-  background: var(--shell-elevated);
-  border-color: var(--shell-border);
+  background: var(--surface-1);
+  border-color: var(--border-soft);
   color: var(--shell-text);
+}
+
+body[data-theme="dark"] .fl-topbar-control,
+body[data-theme="dark"] .fl-topbar-icon-btn {
+  background: #252631;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .fl-topbar-control select,
@@ -722,23 +778,66 @@ body[data-menu-style="glass"] .fl-sidebar-shell {
   color: var(--shell-subtext);
 }
 
-body[data-theme="light"] .fl-sidebar-shell .text-slate-300,
-body[data-theme="light"] .fl-sidebar-shell .text-slate-400,
-body[data-theme="light"] .fl-sidebar-shell .text-slate-500,
-body[data-theme="light"] .fl-sidebar-shell .text-slate-600 {
+/* brand-style sidebar always uses dark tones regardless of page theme */
+body[data-menu-style="brand"] .fl-sidebar-shell .text-slate-300,
+body[data-menu-style="brand"] .fl-sidebar-shell .text-slate-400,
+body[data-menu-style="brand"] .fl-sidebar-shell .text-slate-500,
+body[data-menu-style="brand"] .fl-sidebar-shell .text-slate-600 {
+  color: #94a3b8 !important;
+}
+
+body[data-menu-style="brand"] .fl-sidebar-shell .text-white {
+  color: #f1f5f9 !important;
+}
+
+body[data-menu-style="brand"] .fl-sidebar-shell .hover\:bg-white\/8:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+body[data-menu-style="brand"] .fl-sidebar-shell .border-white\/8,
+body[data-menu-style="brand"] .fl-sidebar-shell .border-white\/10 {
+  border-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+/* light-style sidebar adapts to page theme */
+body[data-menu-style="light"] .fl-sidebar-shell .text-slate-300,
+body[data-menu-style="light"] .fl-sidebar-shell .text-slate-400,
+body[data-menu-style="light"] .fl-sidebar-shell .text-slate-500,
+body[data-menu-style="light"] .fl-sidebar-shell .text-slate-600 {
   color: #475569 !important;
 }
 
-body[data-theme="light"] .fl-sidebar-shell .text-white {
+body[data-menu-style="light"] .fl-sidebar-shell .text-white {
   color: #0f172a !important;
 }
 
-body[data-theme="light"] .fl-sidebar-shell .hover\:bg-white\/8:hover {
+body[data-menu-style="light"] .fl-sidebar-shell .hover\:bg-white\/8:hover {
+  background: rgba(15, 23, 42, 0.07) !important;
+}
+
+body[data-menu-style="light"] .fl-sidebar-shell .border-white\/8,
+body[data-menu-style="light"] .fl-sidebar-shell .border-white\/10 {
+  border-color: var(--shell-border) !important;
+}
+
+/* Deprecated: keep for themes that haven't migrated yet */
+body[data-theme="light"]:not([data-menu-style="brand"]) .fl-sidebar-shell .text-slate-300,
+body[data-theme="light"]:not([data-menu-style="brand"]) .fl-sidebar-shell .text-slate-400,
+body[data-theme="light"]:not([data-menu-style="brand"]) .fl-sidebar-shell .text-slate-500,
+body[data-theme="light"]:not([data-menu-style="brand"]) .fl-sidebar-shell .text-slate-600 {
+  color: #475569 !important;
+}
+
+body[data-theme="light"]:not([data-menu-style="brand"]) .fl-sidebar-shell .text-white {
+  color: #0f172a !important;
+}
+
+body[data-theme="light"]:not([data-menu-style="brand"]) .fl-sidebar-shell .hover\:bg-white\/8:hover {
   background: rgba(15, 23, 42, 0.08) !important;
 }
 
-body[data-theme="light"] .fl-sidebar-shell .border-white\/8,
-body[data-theme="light"] .fl-sidebar-shell .border-white\/10 {
+body[data-theme="light"]:not([data-menu-style="brand"]) .fl-sidebar-shell .border-white\/8,
+body[data-theme="light"]:not([data-menu-style="brand"]) .fl-sidebar-shell .border-white\/10 {
   border-color: var(--shell-border) !important;
 }
 
@@ -989,8 +1088,13 @@ body[data-theme="light"] .fl-sidebar-shell .fl-sidebar-nav-active * {
   color: #ffffff !important;
 }
 
+body[data-menu-style="brand"] .fl-sidebar-shell .fl-sidebar-nav-active,
+body[data-menu-style="brand"] .fl-sidebar-shell .fl-sidebar-nav-active * {
+  color: #ffffff !important;
+}
+
 .fl-sidebar-nav-active .fl-sidebar-icon {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .fl-brand-accent-text {
@@ -1009,24 +1113,53 @@ body[data-theme="light"] .fl-sidebar-shell .fl-sidebar-nav-active * {
   color: var(--brand-accent) !important;
 }
 
-.fl-brand-primary-action {
+/*
+ * Canonical primary action style. Single source of truth — do not redefine
+ * .fl-brand-primary-action / .fl-topbar-primary-action elsewhere in this file.
+ * Previously this class was redefined three times (here, and again further
+ * down for the "brand" and "light" menu styles) without any menu-style
+ * scoping, so the last rule in the cascade silently won and every tenant's
+ * primary buttons rendered a hardcoded blue/gradient instead of their
+ * configured --brand-primary color. Consolidated to fix that.
+ */
+.fl-brand-primary-action,
+.fl-topbar-primary-action {
   background: var(--brand-primary) !important;
   box-shadow: 0 14px 24px color-mix(in oklab, var(--brand-primary) 30%, transparent) !important;
 }
 
-.fl-brand-primary-action:hover {
+.fl-brand-primary-action:hover,
+.fl-topbar-primary-action:hover {
   background: color-mix(in oklab, var(--brand-primary) 86%, black 14%) !important;
 }
 
-.fl-page-content :where(button, a)[class*="bg-red-"],
-.fl-topbar :where(button, a)[class*="bg-red-"] {
+/*
+ * Legacy pages hardcode literal Tailwind "bg-red-*" utility classes for what
+ * are actually primary actions (this predates the tenant theming system).
+ * This override repaints them to the tenant's brand color so white-label
+ * theming still applies. It explicitly excludes .fl-danger-action so real
+ * destructive actions (cancel, delete, remove) keep a real, fixed danger
+ * red and stay visually distinct from the primary CTA — the two must never
+ * look identical, or people risk confirming the wrong action.
+ */
+.fl-page-content :where(button, a):not(.fl-danger-action)[class*="bg-red-"],
+.fl-topbar :where(button, a):not(.fl-danger-action)[class*="bg-red-"] {
   background-color: var(--brand-primary) !important;
   color: #ffffff !important;
 }
 
-.fl-page-content :where(button, a)[class*="bg-red-"]:hover,
-.fl-topbar :where(button, a)[class*="bg-red-"]:hover {
+.fl-page-content :where(button, a):not(.fl-danger-action)[class*="bg-red-"]:hover,
+.fl-topbar :where(button, a):not(.fl-danger-action)[class*="bg-red-"]:hover {
   background-color: color-mix(in oklab, var(--brand-primary) 86%, black 14%) !important;
+}
+
+.fl-danger-action {
+  background-color: var(--color-danger) !important;
+  color: #ffffff !important;
+}
+
+.fl-danger-action:hover {
+  background-color: var(--color-danger-strong) !important;
 }
 
 .fl-page-content input[type="checkbox"],
@@ -1124,11 +1257,55 @@ body[data-theme="light"] .fl-sidebar-shell .fl-sidebar-subitem-active {
   color: #ffffff !important;
 }
 
+/* Active nav item — default (dark brand sidebar) */
 .fl-sidebar-shell .fl-sidebar-nav-active,
 .fl-sidebar-shell .fl-sidebar-nav-active:hover,
 .fl-sidebar-shell .fl-sidebar-favorite-link.fl-sidebar-nav-active,
 .fl-sidebar-shell .fl-sidebar-subitem-active,
-.fl-sidebar-shell .fl-sidebar-subitem-active:hover,
+.fl-sidebar-shell .fl-sidebar-subitem-active:hover {
+  background: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 20px color-mix(in oklab, var(--brand-primary) 32%, transparent) !important;
+}
+
+body[data-menu-style="brand"] .fl-sidebar-shell .fl-sidebar-nav-active,
+body[data-menu-style="brand"] .fl-sidebar-shell .fl-sidebar-nav-active:hover,
+body[data-menu-style="brand"] .fl-sidebar-shell .fl-sidebar-favorite-link.fl-sidebar-nav-active,
+body[data-menu-style="brand"] .fl-sidebar-shell .fl-sidebar-subitem-active,
+body[data-menu-style="brand"] .fl-sidebar-shell .fl-sidebar-subitem-active:hover {
+  background: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 20px color-mix(in oklab, var(--brand-primary) 32%, transparent) !important;
+}
+
+/* Light menu style still uses brand primary */
+body[data-menu-style="light"] .fl-sidebar-shell .fl-sidebar-nav-active,
+body[data-menu-style="light"] .fl-sidebar-shell .fl-sidebar-nav-active:hover,
+body[data-menu-style="light"] .fl-sidebar-shell .fl-sidebar-favorite-link.fl-sidebar-nav-active,
+body[data-menu-style="light"] .fl-sidebar-shell .fl-sidebar-subitem-active,
+body[data-menu-style="light"] .fl-sidebar-shell .fl-sidebar-subitem-active:hover {
+  background: var(--brand-primary) !important;
+  border-color: var(--brand-primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 20px color-mix(in oklab, var(--brand-primary) 28%, transparent) !important;
+}
+
+.fl-sidebar-shell .fl-sidebar-nav-active *,
+.fl-sidebar-shell .fl-sidebar-subitem-active *,
+body[data-menu-style="brand"] .fl-sidebar-shell .fl-sidebar-nav-active *,
+body[data-menu-style="brand"] .fl-sidebar-shell .fl-sidebar-subitem-active *,
+body[data-menu-style="light"] .fl-sidebar-shell .fl-sidebar-nav-active *,
+body[data-menu-style="light"] .fl-sidebar-shell .fl-sidebar-subitem-active * {
+  color: #ffffff !important;
+}
+
+.fl-sidebar-shell .fl-sidebar-nav-active .fl-sidebar-icon {
+  background: rgba(255, 255, 255, 0.16) !important;
+}
+
+/* Legacy: keep compatibility for old theme-based selectors */
 body[data-theme="light"] .fl-sidebar-shell .fl-sidebar-nav-active,
 body[data-theme="light"] .fl-sidebar-shell .fl-sidebar-nav-active:hover,
 body[data-theme="light"] .fl-sidebar-shell .fl-sidebar-favorite-link.fl-sidebar-nav-active,
@@ -1137,18 +1314,12 @@ body[data-theme="light"] .fl-sidebar-shell .fl-sidebar-subitem-active:hover {
   background: var(--brand-primary) !important;
   border-color: var(--brand-primary) !important;
   color: #ffffff !important;
-  box-shadow: 0 12px 24px color-mix(in oklab, var(--brand-primary) 28%, transparent) !important;
+  box-shadow: 0 8px 20px color-mix(in oklab, var(--brand-primary) 28%, transparent) !important;
 }
 
-.fl-sidebar-shell .fl-sidebar-nav-active *,
-.fl-sidebar-shell .fl-sidebar-subitem-active *,
 body[data-theme="light"] .fl-sidebar-shell .fl-sidebar-nav-active *,
 body[data-theme="light"] .fl-sidebar-shell .fl-sidebar-subitem-active * {
   color: #ffffff !important;
-}
-
-.fl-sidebar-shell .fl-sidebar-nav-active .fl-sidebar-icon {
-  background: transparent !important;
 }
 
 .fl-sidebar-user-panel {
@@ -1635,6 +1806,453 @@ svg {
   height: 1.125rem;
   width: 1.125rem;
 }
+
+/* =========================================================
+   GESTASPORTS DESIGN SYSTEM v2
+   Inspired by mockup — dark sidebar, clean topbar, KPI cards
+   ========================================================= */
+
+/* ── Sidebar club logo frame ── */
+.fl-sidebar-club-logo-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.fl-sidebar-club-logo-frame-collapsed {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.fl-sidebar-club-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+body[data-menu-style="light"] .fl-sidebar-club-logo-frame {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+/* ── KPI Stat Card ── */
+.fl-kpi-card {
+  background: #ffffff;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.625rem;
+  padding: 1.125rem 1.25rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.fl-kpi-card:hover {
+  border-color: rgba(15, 23, 42, 0.15);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.09);
+}
+
+.fl-kpi-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+}
+
+.fl-kpi-icon-red    { background: var(--kpi-red);    color: var(--kpi-red-icon); }
+.fl-kpi-icon-orange { background: var(--kpi-orange); color: var(--kpi-orange-icon); }
+.fl-kpi-icon-amber  { background: var(--kpi-amber);  color: var(--kpi-amber-icon); }
+.fl-kpi-icon-green  { background: var(--kpi-green);  color: var(--kpi-green-icon); }
+.fl-kpi-icon-teal   { background: var(--kpi-teal);   color: var(--kpi-teal-icon); }
+.fl-kpi-icon-blue   { background: var(--kpi-blue);   color: var(--kpi-blue-icon); }
+.fl-kpi-icon-indigo { background: var(--kpi-indigo); color: var(--kpi-indigo-icon); }
+.fl-kpi-icon-purple { background: var(--kpi-purple); color: var(--kpi-purple-icon); }
+
+.fl-kpi-value {
+  font-size: 1.625rem;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--shell-text);
+  letter-spacing: -0.02em;
+}
+
+.fl-kpi-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--shell-subtext);
+  margin-top: 0.25rem;
+  line-height: 1.3;
+}
+
+.fl-kpi-sublabel {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--shell-subtext);
+  opacity: 0.75;
+  margin-top: 0.125rem;
+}
+
+/* KPI grid helper */
+.fl-kpi-grid {
+  display: grid;
+  gap: 0.875rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+}
+
+/* ── Filter bar ── */
+.fl-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  background: #ffffff;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.625rem;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
+}
+
+.fl-filter-input {
+  flex: 1;
+  min-width: 10rem;
+  height: 2.375rem;
+  padding: 0 0.75rem 0 2.125rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.fl-filter-input:focus {
+  border-color: var(--brand-primary);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand-primary) 12%, transparent);
+}
+
+.fl-filter-select {
+  height: 2.375rem;
+  min-width: 9rem;
+  padding: 0 2rem 0 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.fl-filter-select:focus {
+  border-color: var(--brand-primary);
+  background: #ffffff;
+}
+
+.fl-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2.375rem;
+  padding: 0 0.875rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.fl-filter-btn:hover {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.18);
+}
+
+/* ── Section header with "Ver todos" link ── */
+.fl-section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.fl-section-title {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.fl-section-link {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--brand-primary);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 150ms ease;
+}
+
+.fl-section-link:hover {
+  opacity: 0.75;
+}
+
+/* ── Content card ── */
+.fl-card {
+  background: #ffffff;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.625rem;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.fl-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.fl-card-body {
+  padding: 1.25rem;
+}
+
+/* ── Status badges ── */
+.fl-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.fl-badge-red    { background: #fee2e2; color: #b91c1c; }
+.fl-badge-orange { background: #ffedd5; color: #c2410c; }
+.fl-badge-amber  { background: #fef3c7; color: #92400e; }
+.fl-badge-green  { background: #dcfce7; color: #166534; }
+.fl-badge-teal   { background: #ccfbf1; color: #0f766e; }
+.fl-badge-blue   { background: #dbeafe; color: #1d4ed8; }
+.fl-badge-indigo { background: #e0e7ff; color: #3730a3; }
+.fl-badge-purple { background: #f3e8ff; color: #7e22ce; }
+.fl-badge-slate  { background: #f1f5f9; color: #475569; }
+
+/* ── Tabbed navigation ── */
+.fl-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border-soft);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.fl-tabs::-webkit-scrollbar { display: none; }
+
+.fl-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.75rem 1.125rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--shell-subtext);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease;
+  text-decoration: none;
+  background: transparent;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.fl-tab:hover {
+  color: var(--text);
+}
+
+.fl-tab[aria-selected="true"],
+.fl-tab-active {
+  color: var(--brand-primary) !important;
+  border-bottom-color: var(--brand-primary) !important;
+}
+
+/* ── Progress / stat bar ── */
+.fl-stat-bar {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--border-soft);
+  overflow: hidden;
+}
+
+.fl-stat-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand-primary);
+  transition: width 400ms ease;
+}
+
+/* ── Result badge (V/E/D) ── */
+.fl-result-v { background: #dcfce7; color: #166534; border-radius: 0.375rem; padding: 0.1rem 0.5rem; font-size: 0.75rem; font-weight: 800; }
+.fl-result-e { background: #fef3c7; color: #92400e; border-radius: 0.375rem; padding: 0.1rem 0.5rem; font-size: 0.75rem; font-weight: 800; }
+.fl-result-d { background: #fee2e2; color: #b91c1c; border-radius: 0.375rem; padding: 0.1rem 0.5rem; font-size: 0.75rem; font-weight: 800; }
+
+/* ── Topbar action button (Novo registro) ── */
+.fl-topbar-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2.5rem;
+  padding: 0 1.125rem;
+  border-radius: 0.5rem;
+  background: var(--brand-primary);
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 800;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 150ms ease, box-shadow 150ms ease;
+  box-shadow: 0 4px 12px color-mix(in oklab, var(--brand-primary) 30%, transparent);
+  border: none;
+  cursor: pointer;
+}
+
+.fl-topbar-cta:hover {
+  background: color-mix(in oklab, var(--brand-primary) 88%, black 12%);
+  box-shadow: 0 6px 18px color-mix(in oklab, var(--brand-primary) 36%, transparent);
+}
+
+/* ── Year/season selector in topbar ── */
+.fl-topbar-year-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2.375rem;
+  padding: 0 0.625rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-1);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.fl-topbar-year-select:focus,
+.fl-topbar-year-select:hover {
+  border-color: rgba(15, 23, 42, 0.22);
+}
+
+/* ── Dark mode overrides ── */
+body[data-theme="dark"] .fl-kpi-card {
+  background: var(--surface-1);
+  border-color: var(--border-soft);
+}
+
+body[data-theme="dark"] .fl-filter-bar {
+  background: var(--surface-1);
+  border-color: var(--border-soft);
+}
+
+body[data-theme="dark"] .fl-filter-input,
+body[data-theme="dark"] .fl-filter-select {
+  background: var(--surface-2);
+  border-color: var(--border-soft);
+  color: var(--text);
+}
+
+body[data-theme="dark"] .fl-card {
+  background: var(--surface-1);
+  border-color: var(--border-soft);
+}
+
+body[data-theme="dark"] .fl-badge-slate {
+  background: rgba(148, 163, 184, 0.16);
+  color: #94a3b8;
+}
+
+/* ── Sidebar nav section labels ── */
+.fl-sidebar-section-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.55);
+  padding: 0.5rem 0.5rem 0.25rem;
+  margin-top: 0.25rem;
+}
+
+body[data-menu-style="light"] .fl-sidebar-section-label {
+  color: #94a3b8;
+}
+
+/* ── Shell body background ── */
+body {
+  background: var(--bg-a);
+}
+
+body[data-theme="dark"] body,
+body[data-theme="dark"] {
+  background: #0e0f18;
+}
+
+/* ── Topbar redesign ── */
+@media (min-width: 1024px) {
+  .fl-topbar {
+    min-height: 4.25rem;
+    padding-block: 0;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* ── Sidebar bottom platform footer ── */
+.fl-sidebar-platform-footer {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body[data-menu-style="light"] .fl-sidebar-platform-footer {
+  background: var(--surface-muted) !important;
+  border-color: var(--border-soft) !important;
+}
+
+/* ── Scrollbar global ── */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+}
+
+::-webkit-scrollbar { width: 0.4rem; height: 0.4rem; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.4); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.65); }
 
 .fl-sidebar-avatar,
 .fl-page-content :where([class*="avatar" i], [class*="photo" i]) {
@@ -2262,16 +2880,6 @@ body[data-theme="dark"] .fl-page-content :where(.bg-red-50) {
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055) !important;
 }
 
-.fl-topbar-primary-action,
-.fl-brand-primary-action {
-  background: linear-gradient(135deg, var(--brand-accent), color-mix(in oklab, var(--brand-accent) 72%, #020617)) !important;
-}
-
-.fl-topbar-primary-action:hover,
-.fl-brand-primary-action:hover {
-  filter: brightness(0.96);
-}
-
 .fl-page-content :where(
   article[class*="border"][class*="bg-white"],
   section[class*="border"][class*="bg-white"],
@@ -2756,13 +3364,6 @@ body[data-theme="light"] {
   background: var(--spike-blue-soft) !important;
 }
 
-.fl-topbar-primary-action,
-.fl-brand-primary-action {
-  border-radius: 999px !important;
-  background: linear-gradient(135deg, var(--spike-blue), #0071ba) !important;
-  box-shadow: 0 10px 20px rgba(0, 133, 219, 0.18) !important;
-}
-
 .fl-sidebar-shell,
 body[data-menu-style="light"] .fl-sidebar-shell {
   background: #ffffff !important;
@@ -3050,4 +3651,120 @@ body[data-theme="dark"] .fl-enterprise-header {
   background:
     linear-gradient(135deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.98)),
     url("/spike/background/unlimited-bg.png") right 1rem center / auto 78% no-repeat !important;
+}
+
+/* ─────────────────────────────────────────────
+   MemorialPages — classes auxiliares
+───────────────────────────────────────────── */
+
+/* Listas e grids */
+.fl-mem-person-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fl-mem-person-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 1rem;
+}
+
+.fl-mem-trophy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.fl-mem-shirt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 1rem;
+}
+
+/* Prose */
+.fl-mem-prose {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--shell-subtext);
+  margin: 0 0 1rem;
+}
+
+/* Detalhe da camisa selecionada */
+.fl-mem-shirt-detail-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.fl-mem-shirt-detail-hero__img {
+  width: 7rem;
+  height: 8rem;
+  object-fit: contain;
+  border-radius: 0.5rem;
+  background: var(--surface-muted);
+  flex-shrink: 0;
+}
+
+.fl-mem-shirt-detail-hero__placeholder {
+  width: 7rem;
+  height: 8rem;
+  display: grid;
+  place-items: center;
+  font-size: 3rem;
+  background: var(--surface-muted);
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+}
+
+.fl-mem-shirt-detail-hero__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* Skeleton loaders */
+.fl-mem-skeleton {
+  background: linear-gradient(90deg, var(--surface-muted) 25%, var(--surface-2) 50%, var(--surface-muted) 75%);
+  background-size: 200% 100%;
+  animation: fl-mem-shimmer 1.4s infinite;
+  border-radius: 0.5rem;
+}
+
+.fl-mem-skeleton--row {
+  height: 4.5rem;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.fl-mem-skeleton--card {
+  height: 12rem;
+  width: 100%;
+}
+
+.fl-mem-skeleton--person {
+  height: 5rem;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.fl-mem-skeleton--photo {
+  height: 9rem;
+  width: 100%;
+}
+
+.fl-mem-skeleton--timeline {
+  height: 6rem;
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
+@keyframes fl-mem-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

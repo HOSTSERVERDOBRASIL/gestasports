@@ -84,7 +84,7 @@ const pageChromeByPath: Array<[string, PageChrome]> = [
   ["/jogos/campo-times", { title: "Campo e Times", subtitle: "Monte a escalação visual do jogo e organize reservas." }],
   ["/futebol", { title: "Futebol", subtitle: "Acompanhe jogos, competições, equipes, campos, escalação e súmula.", actionLabel: "Novo jogo", actionPath: "/jogos?view=OPERACAO&subView=CADASTRO" }],
   ["/jogos", { title: "Jogos", subtitle: "Gerencie partidas, amistosos e campeonatos do seu time.", actionLabel: "Novo jogo", actionPath: "/jogos?view=OPERACAO&subView=CADASTRO" }],
-  ["/minha-conta", { title: "Painel do atleta", subtitle: "Jogos, confirmações, pagamentos, desempenho e saúde em um só lugar.", actionLabel: "Ver financeiro", actionPath: "/minha-conta#atleta-financeiro" }],
+  ["/minha-conta", { title: "Painel do atleta", subtitle: "Jogos, confirmações, pagamentos, desempenho e saúde em um só lugar.", actionLabel: "Ver financeiro", actionPath: "/atleta/financeiro" }],
   ["/estatisticas", { title: "Estatísticas", subtitle: "Acompanhe rankings, artilharia, assistências, participação e disciplina do clube.", actionLabel: "Ver rankings", actionPath: "/rankings" }],
   ["/artilharia", { title: "Artilharia", subtitle: "Registre gols, assistências e acompanhe rankings por período.", actionLabel: "Lançar artilharia", actionPath: "/artilharia?launch=1" }],
   ["/assistencias", { title: "Assistencias", subtitle: "Acompanhe passes decisivos por atleta, jogo e periodo.", actionLabel: "Ver estatisticas", actionPath: "/estatisticas" }],
@@ -121,7 +121,8 @@ function getInitialCollapsed() {
 }
 
 function readMenuStyle(): MenuStyle {
-  return "light";
+  const stored = localStorage.getItem(UI_MENU_STYLE_KEY);
+  return stored === "light" || stored === "glass" ? stored : "brand";
 }
 
 function readEffectsLevel(): EffectsLevel {
@@ -135,7 +136,7 @@ function getRoleHomePath(role: UserRole) {
   }
 
   if (role === "ATHLETE") {
-    return "/minha-conta";
+    return "/atleta";
   }
 
   if (role === "SPORTS_DIRECTOR") {
@@ -287,8 +288,9 @@ export function AppLayout() {
     }
 
     if (brand.menuStyle) {
-      setMenuStyle("light");
-      localStorage.setItem(UI_MENU_STYLE_KEY, "light");
+      const ms = brand.menuStyle === "light" || brand.menuStyle === "glass" ? brand.menuStyle : "brand";
+      setMenuStyle(ms);
+      localStorage.setItem(UI_MENU_STYLE_KEY, ms);
     }
 
     if (brand.interfaceEffects) {

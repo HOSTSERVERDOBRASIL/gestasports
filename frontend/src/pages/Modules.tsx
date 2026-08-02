@@ -25,20 +25,22 @@ import {
 import {
   ArchiveDetailPage,
   ArchiveLaunchPage,
-  MemorialAssetsPage as MemorialAssetsPageReal,
   MemorialAtletasPage as MemorialAtletasPageReal,
-  MemorialAwardsPage as MemorialAwardsPageReal,
   MemorialDashboardPage as MemorialDashboardPageReal,
-  MemorialDiretoriasPage as MemorialDiretoriasPageReal,
-  MemorialDocumentsPage as MemorialDocumentsPageReal,
-  MemorialGalleryPage as MemorialGalleryPageReal,
-  MemorialHallPage as MemorialHallPageReal,
-  MemorialJogosPage as MemorialJogosPageReal,
-  MemorialLinhaTempoPage as MemorialLinhaTempoPageReal,
-  MemorialSumulasPage as MemorialSumulasPageReal,
-  MemorialTitulosPage as MemorialTitulosPageReal,
-  MemorialUniformesPage as MemorialUniformesPageReal
+  MemorialJogosPage as MemorialJogosPageReal
 } from "./ArchivePages";
+import {
+  MemorialPresidentesPage as MemorialPresidentesPageRich,
+  MemorialTitulosPage2 as MemorialTitulosPageRich,
+  MemorialSumulasPage2 as MemorialSumulasPageRich,
+  MemorialLinhaTempoPage2 as MemorialLinhaTempoPageRich,
+  MemorialCamisasPage2 as MemorialCamisasPageRich,
+  MemorialGaleriaPage2 as MemorialGaleriaPageRich,
+  MemorialDocumentosPage2 as MemorialDocumentosPageRich,
+  MemorialTrofeusPage2 as MemorialTrofeusPageRich,
+  MemorialPatrimonioPage2 as MemorialPatrimonioPageRich,
+  MemorialHallPage2 as MemorialHallPageRich
+} from "./MemorialPages";
 
 export function AssociadosPage() {
   return <AssociadosPageReal />;
@@ -165,7 +167,7 @@ export function InscricaoFormPage() {
 }
 
 export function GaleriaPage() {
-  return <MemorialGalleryPageReal />;
+  return <MemorialGaleriaPageRich />;
 }
 
 export function GaleriaDetailPage() {
@@ -197,39 +199,39 @@ export function MemorialAtletasPage() {
 }
 
 export function MemorialDiretoriasPage() {
-  return <MemorialDiretoriasPageReal />;
+  return <MemorialPresidentesPageRich />;
 }
 
 export function MemorialTitulosPage() {
-  return <MemorialTitulosPageReal />;
+  return <MemorialTitulosPageRich />;
 }
 
 export function MemorialSumulasPage() {
-  return <MemorialSumulasPageReal />;
+  return <MemorialSumulasPageRich />;
 }
 
 export function MemorialLinhaTempoPage() {
-  return <MemorialLinhaTempoPageReal />;
+  return <MemorialLinhaTempoPageRich />;
 }
 
 export function MemorialUniformesPage() {
-  return <MemorialUniformesPageReal />;
+  return <MemorialCamisasPageRich />;
 }
 
 export function MemorialDocumentsPage() {
-  return <MemorialDocumentsPageReal />;
+  return <MemorialDocumentosPageRich />;
 }
 
 export function MemorialAwardsPage() {
-  return <MemorialAwardsPageReal />;
+  return <MemorialTrofeusPageRich />;
 }
 
 export function MemorialAssetsPage() {
-  return <MemorialAssetsPageReal />;
+  return <MemorialPatrimonioPageRich />;
 }
 
 export function MemorialHallPage() {
-  return <MemorialHallPageReal />;
+  return <MemorialHallPageRich />;
 }
 
 export function MemorialTitleFormPage() {

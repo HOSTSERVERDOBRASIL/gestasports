@@ -122,13 +122,13 @@ export const navigationSections: NavigationSection[] = [
     hint: "Conta, jogos e desempenho",
     context: "CLUB",
     items: [
-      { label: "Dashboard", path: "/minha-conta#atleta-resumo", icon: BarChart3, roles: ["ATHLETE"] },
-      { label: "Jogos", path: "/minha-conta#atleta-confirmacao", icon: CalendarDays, roles: ["ATHLETE"] },
-      { label: "Desempenho", path: "/minha-conta#atleta-evolucao", icon: Trophy, roles: ["ATHLETE"] },
-      { label: "Financeiro", path: "/minha-conta#atleta-financeiro", icon: Coins, roles: ["ATHLETE"] },
-      { label: "Saude", path: "/minha-conta#atleta-saude", icon: HeartPulse, roles: ["ATHLETE"] },
-      { label: "Perfil", path: "/minha-conta#atleta-perfil", icon: UserRound, roles: ["ATHLETE"] },
-      { label: "Memorial", path: "/minha-conta#atleta-historico", icon: BookOpenText, roles: ["ATHLETE"] }
+      { label: "Dashboard", path: "/atleta", icon: BarChart3, roles: ["ATHLETE"] },
+      { label: "Jogos", path: "/atleta/jogos", icon: CalendarDays, roles: ["ATHLETE"] },
+      { label: "Desempenho", path: "/atleta/desempenho", icon: Trophy, roles: ["ATHLETE"] },
+      { label: "Financeiro", path: "/atleta/financeiro", icon: Coins, roles: ["ATHLETE"] },
+      { label: "Saúde", path: "/atleta/saude", icon: HeartPulse, roles: ["ATHLETE"] },
+      { label: "Perfil", path: "/atleta/perfil", icon: UserRound, roles: ["ATHLETE"] },
+      { label: "Conquistas", path: "/atleta/conquistas", icon: BookOpenText, roles: ["ATHLETE"] }
     ]
   },
   {
@@ -314,7 +314,7 @@ export const navigationItems = navigationSections.flatMap((section) =>
 );
 
 export function moduleForPath(path: string): TenantModuleCode | undefined {
-  if (path === "/" || path.startsWith("/minha-conta")) return undefined;
+  if (path === "/" || path.startsWith("/minha-conta") || path.startsWith("/atleta")) return undefined;
   if (path.startsWith("/superadmin")) return undefined;
   if (path.startsWith("/associacao")) return "ASSOCIATES";
   if (path.startsWith("/pessoas")) return "ASSOCIATES";
@@ -408,7 +408,7 @@ export function getDefaultFavoritePathsByRoles(roles: UserRole[] | undefined, en
     "/estatisticas",
     "/financeiro?area=COBRANCAS",
     "/memorial",
-    "/minha-conta"
+    "/atleta"
   ];
   const visiblePaths = new Set(visibleItems.map((item) => item.path));
 

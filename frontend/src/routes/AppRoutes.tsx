@@ -81,6 +81,16 @@ import {
 import CreateGamePage from "../pages/CreateGamePage";
 import { AthleteAccountPage } from "../pages/AthleteAccountPage";
 import { DynamicMemorialCategoryPage, PublicMemorialPage } from "../pages/ArchivePages";
+import {
+  AthletePortalDashboardPage,
+  AthletePortalGamesPage,
+  AthletePortalPerformancePage,
+  AthletePortalFinancePage,
+  AthletePortalHealthPage,
+  AthletePortalCareerPage,
+  AthletePortalProfilePage,
+  AthletePortalAchievementsPage
+} from "../pages/AthletePortalPages";
 import { JogosTeamsFieldPage } from "../pages/TeamsFieldPages";
 import { InternalLeaguesPage } from "../pages/InternalLeaguesPage";
 import { TrainingSessionsPage } from "../pages/TrainingSessionsPage";
@@ -91,7 +101,7 @@ import { ADMIN_ROLES, FINANCE_ROLES, MANAGEMENT_ROLES, SPORTS_ROLES } from "../s
 
 function homePathForRole(role: UserRole | null | undefined) {
   if (role === "SUPERADMIN") return "/superadmin";
-  if (role === "ATHLETE") return "/minha-conta";
+  if (role === "ATHLETE") return "/atleta";
   if (role === "SPORTS_DIRECTOR") return "/esportes";
   if (role === "ASSOCIATE") return "/associado";
   if (role === "FINANCIAL") return "/financeiro?area=DASHBOARD";
@@ -239,6 +249,15 @@ export function AppRoutes() {
         <Route path="jogos/campo-times" element={<RequireRoles roles={sportsRoles}><JogosTeamsFieldPage /></RequireRoles>} />
         <Route path="create-game" element={<RequireRoles roles={sportsRoles}><CreateGamePage /></RequireRoles>} />
       </Route>
+
+      <Route path="atleta" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalDashboardPage /></RequireRoles>} />
+      <Route path="atleta/jogos" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalGamesPage /></RequireRoles>} />
+      <Route path="atleta/desempenho" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalPerformancePage /></RequireRoles>} />
+      <Route path="atleta/financeiro" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalFinancePage /></RequireRoles>} />
+      <Route path="atleta/saude" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalHealthPage /></RequireRoles>} />
+      <Route path="atleta/carreira" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalCareerPage /></RequireRoles>} />
+      <Route path="atleta/conquistas" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalAchievementsPage /></RequireRoles>} />
+      <Route path="atleta/perfil" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalProfilePage /></RequireRoles>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
