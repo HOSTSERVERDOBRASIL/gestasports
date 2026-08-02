@@ -181,13 +181,25 @@ process.on("SIGTERM", () => {
   void shutdown("SIGTERM");
 });
 
-app
-  .listen({ port: env.PORT, host: "0.0.0.0" })
-  .then(() => {
-    app.log.info(`Servidor iniciado na porta ${env.PORT}`);
-  })
-  .catch((error) => {
-    app.log.error(error);
-    process.exit(1);
-  });
+async function start() {
+  if (env.NODE_ENV === "production") {
+    const { execSync } = await import("node:child_process");
+    try {
+      app.log.info("Executando prisma migrate deploy...");
+      execSync("npx prisma migrate deploy", { stdio: "inherit" });
+      app.log.info("Migrations aplicadas com sucesso.");
+    } catch (error) {
+      app.log.error("Falha ao aplicar migrations", error);
+      process.exit(1);
+    }
+  }
+
+  await app.listen({ port: env.PORT, host: "0.0.0.0" });
+  app.log.info(`Servidor iniciado na porta ${env.PORT}`);
+}
+
+start().catch((error) => {
+  app.log.error(error);
+  process.exit(1);
+});
 
