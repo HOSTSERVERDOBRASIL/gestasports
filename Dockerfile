@@ -17,7 +17,7 @@ COPY prisma.config.ts tsconfig.json ./
 COPY src ./src
 COPY frontend ./frontend
 
-RUN DATABASE_URL="postgresql://build:build@localhost/build" npx prisma generate --schema=prisma/schema.prisma
+RUN npm run prisma:generate
 RUN npm run build:all
 
 FROM node:22-alpine AS runner
