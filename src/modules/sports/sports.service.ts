@@ -412,7 +412,7 @@ export async function updateGameClock(gameId: string, action: GameClockAction) {
   if (action === "FINISH") {
     return prisma.$transaction(async (tx) => {
       await assertCompleteInternalLineup(tx, gameId);
-      return tx.game.update({
+      const updated = await tx.game.update({
         where: { id: gameId },
         data: {
           status: "FINISHED",
@@ -421,6 +421,8 @@ export async function updateGameClock(gameId: string, action: GameClockAction) {
           elapsedSeconds: currentElapsedSeconds(game)
         }
       });
+      await updateCompetitionStandings(tx, gameId);
+      return updated;
     });
   }
 
@@ -467,54 +469,43 @@ export async function updateGameClock(gameId: string, action: GameClockAction) {
 }
 
 export async function setGameResult(input: SetResultInput) {
-  const game = await prisma.game.findUnique({
-    where: { id: input.gameId },
-    select: { id: true, type: true, seasonId: true }
-  });
+  return prisma.$transaction(async (tx) => {
+    const game = await tx.game.findUnique({
+      where: { id: input.gameId },
+      select: { id: true, type: true, seasonId: true, status: true }
+    });
 
-  if (!game) {
-    throw new Error("Jogo não encontrado.");
-  }
-
-  const isDraw = input.redScore === input.whiteScore;
-  const winnerSide = isDraw ? null : input.redScore > input.whiteScore ? TeamSide.RED : TeamSide.WHITE;
-
-  await prisma.$transaction(async (tx) => {
-    await assertCompleteInternalLineup(tx, input.gameId);
-  });
-
-  const updatedGame = await prisma.game.update({
-    where: { id: input.gameId },
-    data: {
-      redScore: input.redScore,
-      whiteScore: input.whiteScore,
-      isDraw,
-      winnerSide
+    if (!game) {
+      throw new Error("Jogo não encontrado.");
     }
-  });
 
-  if (game.type === GameType.INTERNAL) {
-    await prisma.confrontationMatch.upsert({
-      where: { gameId: game.id },
-      update: {
-        redScore: input.redScore,
-        whiteScore: input.whiteScore,
-        isDraw,
-        winnerSide,
-        seasonId: game.seasonId || null
-      },
-      create: {
-        gameId: game.id,
-        seasonId: game.seasonId || null,
+    await assertCompleteInternalLineup(tx, input.gameId);
+
+    const isDraw = input.redScore === input.whiteScore;
+    const winnerSide = isDraw ? null : input.redScore > input.whiteScore ? TeamSide.RED : TeamSide.WHITE;
+
+    const updatedGame = await tx.game.update({
+      where: { id: input.gameId },
+      data: {
         redScore: input.redScore,
         whiteScore: input.whiteScore,
         isDraw,
         winnerSide
       }
     });
-  }
 
-  return updatedGame;
+    if (game.type === GameType.INTERNAL) {
+      await tx.confrontationMatch.upsert({
+        where: { gameId: game.id },
+        update: { redScore: input.redScore, whiteScore: input.whiteScore, isDraw, winnerSide, seasonId: game.seasonId || null },
+        create: { gameId: game.id, seasonId: game.seasonId || null, redScore: input.redScore, whiteScore: input.whiteScore, isDraw, winnerSide }
+      });
+    }
+
+    await updateCompetitionStandings(tx, input.gameId);
+
+    return updatedGame;
+  });
 }
 
 export async function upsertLineup(input: LineupInput) {
@@ -622,6 +613,140 @@ export async function upsertLineup(input: LineupInput) {
   });
 }
 
+async function recalculateGameScore(tx: any, gameId: string) {
+  const game = await tx.game.findUnique({
+    where: { id: gameId },
+    select: { id: true, type: true, seasonId: true, competitionId: true, homeTeamId: true, awayTeamId: true }
+  });
+  if (!game) return;
+
+  const goalEvents = await tx.gameEvent.findMany({
+    where: {
+      gameId,
+      type: { in: [EventType.GOAL, EventType.OWN_GOAL, EventType.PENALTY_SCORED] },
+      side: { not: null }
+    },
+    select: { type: true, side: true }
+  });
+
+  let redScore = 0;
+  let whiteScore = 0;
+  for (const e of goalEvents) {
+    if (e.type === EventType.OWN_GOAL) {
+      // own goal scores for the OPPOSITE side
+      if (e.side === TeamSide.RED) whiteScore += 1;
+      else if (e.side === TeamSide.WHITE) redScore += 1;
+    } else {
+      if (e.side === TeamSide.RED) redScore += 1;
+      else if (e.side === TeamSide.WHITE) whiteScore += 1;
+    }
+  }
+
+  const isDraw = redScore === whiteScore;
+  const winnerSide = isDraw ? null : redScore > whiteScore ? TeamSide.RED : TeamSide.WHITE;
+
+  await tx.game.update({
+    where: { id: gameId },
+    data: { redScore, whiteScore, isDraw, winnerSide }
+  });
+
+  if (game.type === GameType.INTERNAL) {
+    await tx.confrontationMatch.upsert({
+      where: { gameId },
+      update: { redScore, whiteScore, isDraw, winnerSide, seasonId: game.seasonId || null },
+      create: { gameId, redScore, whiteScore, isDraw, winnerSide, seasonId: game.seasonId || null }
+    });
+  }
+}
+
+async function updateCompetitionStandings(tx: any, gameId: string) {
+  const game = await tx.game.findUnique({
+    where: { id: gameId },
+    select: {
+      id: true,
+      competitionId: true,
+      homeTeamId: true,
+      awayTeamId: true,
+      homeClubId: true,
+      awayClubId: true,
+      redScore: true,
+      whiteScore: true,
+      isDraw: true,
+      winnerSide: true,
+      status: true
+    }
+  });
+
+  if (!game?.competitionId || game.status !== "FINISHED") return;
+  if (game.redScore === null || game.whiteScore === null) return;
+
+  // Determine which team/club is RED and which is WHITE
+  const redTeamId = game.homeTeamId;
+  const whiteTeamId = game.awayTeamId;
+  const redClubId = game.homeClubId;
+  const whiteClubId = game.awayClubId;
+
+  const sides: Array<{
+    teamId: string | null;
+    clubId: string | null;
+    goalsFor: number;
+    goalsAgainst: number;
+    won: boolean;
+    drew: boolean;
+    lost: boolean;
+  }> = [];
+
+  if (redTeamId || redClubId) {
+    sides.push({
+      teamId: redTeamId,
+      clubId: redClubId,
+      goalsFor: game.redScore,
+      goalsAgainst: game.whiteScore,
+      won: !game.isDraw && game.winnerSide === TeamSide.RED,
+      drew: game.isDraw,
+      lost: !game.isDraw && game.winnerSide !== TeamSide.RED
+    });
+  }
+
+  if (whiteTeamId || whiteClubId) {
+    sides.push({
+      teamId: whiteTeamId,
+      clubId: whiteClubId,
+      goalsFor: game.whiteScore,
+      goalsAgainst: game.redScore,
+      won: !game.isDraw && game.winnerSide === TeamSide.WHITE,
+      drew: game.isDraw,
+      lost: !game.isDraw && game.winnerSide !== TeamSide.WHITE
+    });
+  }
+
+  for (const side of sides) {
+    const where = side.teamId
+      ? { competitionId_teamId: { competitionId: game.competitionId, teamId: side.teamId } }
+      : null;
+
+    if (!where) continue;
+
+    const existing = await tx.competitionTeam.findUnique({ where });
+    if (!existing) continue;
+
+    const points = side.won ? 3 : side.drew ? 1 : 0;
+
+    await tx.competitionTeam.update({
+      where,
+      data: {
+        points: { increment: points },
+        wins: { increment: side.won ? 1 : 0 },
+        draws: { increment: side.drew ? 1 : 0 },
+        losses: { increment: side.lost ? 1 : 0 },
+        goalsFor: { increment: side.goalsFor },
+        goalsAgainst: { increment: side.goalsAgainst },
+        goalDifference: { increment: side.goalsFor - side.goalsAgainst }
+      }
+    });
+  }
+}
+
 export async function registerGameEvents(gameId: string, events: GameEventInput[]) {
   return prisma.$transaction(async (tx) => {
     const game = await tx.game.findUnique({ where: { id: gameId }, select: { id: true } });
@@ -650,6 +775,16 @@ export async function registerGameEvents(gameId: string, events: GameEventInput[
 
       await enforceAutomaticSuspension(tx, gameId, event);
       created.push(inserted);
+    }
+
+    // Recalculate score from all events after batch insert
+    const hasScoreEvent = events.some((e) =>
+      e.type === EventType.GOAL ||
+      e.type === EventType.OWN_GOAL ||
+      e.type === EventType.PENALTY_SCORED
+    );
+    if (hasScoreEvent) {
+      await recalculateGameScore(tx, gameId);
     }
 
     return created;
@@ -752,14 +887,27 @@ export async function deleteGameSubstitution(gameId: string, substitutionId: str
 }
 
 export async function deleteGameEvent(gameId: string, eventId: string) {
-  const deleted = await prisma.gameEvent.deleteMany({
-    where: {
-      id: eventId,
-      gameId
-    }
-  });
+  return prisma.$transaction(async (tx) => {
+    const event = await tx.gameEvent.findFirst({
+      where: { id: eventId, gameId },
+      select: { type: true }
+    });
 
-  return deleted.count > 0;
+    const deleted = await tx.gameEvent.deleteMany({
+      where: { id: eventId, gameId }
+    });
+
+    if (deleted.count > 0 && event) {
+      const isScoreEvent = event.type === EventType.GOAL ||
+        event.type === EventType.OWN_GOAL ||
+        event.type === EventType.PENALTY_SCORED;
+      if (isScoreEvent) {
+        await recalculateGameScore(tx, gameId);
+      }
+    }
+
+    return deleted.count > 0;
+  });
 }
 
 export async function getScorerRanking(year: number, month?: number) {

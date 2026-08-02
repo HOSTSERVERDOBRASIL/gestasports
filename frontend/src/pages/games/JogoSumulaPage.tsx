@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ClipboardList } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, ClipboardList } from "lucide-react";
 import { apiRequest } from "../../services/api";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { SectionCard } from "../../components/ui/SectionCard";
@@ -9,16 +9,22 @@ import { formatDate } from "./gameLogic";
 
 const eventTypeLabel: Record<GameEventType, string> = {
   GOAL: "Gol",
+  OWN_GOAL: "Gol contra",
   ASSIST: "Assistência",
   YELLOW_CARD: "Cartão amarelo",
-  RED_CARD: "Cartão vermelho"
+  RED_CARD: "Cartão vermelho",
+  PENALTY_SCORED: "Pênalti",
+  PENALTY_MISSED: "Pênalti perdido"
 };
 
 const eventTypeColor: Record<GameEventType, string> = {
   GOAL: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  OWN_GOAL: "bg-orange-50 text-orange-700 border-orange-200",
   ASSIST: "bg-blue-50 text-blue-700 border-blue-200",
   YELLOW_CARD: "bg-amber-50 text-amber-700 border-amber-200",
-  RED_CARD: "bg-red-50 text-red-700 border-red-200"
+  RED_CARD: "bg-red-50 text-red-700 border-red-200",
+  PENALTY_SCORED: "bg-teal-50 text-teal-700 border-teal-200",
+  PENALTY_MISSED: "bg-slate-100 text-slate-500 border-slate-200"
 };
 
 export function JogoSumulaPage() {
@@ -42,14 +48,39 @@ export function JogoSumulaPage() {
   }
 
   const events = g?.events ?? [];
-  const goals = events.filter((e) => e.type === "GOAL");
+  const substitutions = g?.substitutions ?? [];
+  const goals = events.filter((e) => e.type === "GOAL" || e.type === "PENALTY_SCORED");
+  const ownGoals = events.filter((e) => e.type === "OWN_GOAL");
   const assists = events.filter((e) => e.type === "ASSIST");
   const yellows = events.filter((e) => e.type === "YELLOW_CARD");
   const reds = events.filter((e) => e.type === "RED_CARD");
-  const redScore = goals.filter((e) => e.side === "RED").length;
-  const whiteScore = goals.filter((e) => e.side === "WHITE").length;
+
   const redTeamName = g?.redTeamName ?? "Time A";
   const whiteTeamName = g?.whiteTeamName ?? "Time B";
+
+  // Build unified timeline: events + substitutions sorted by minute
+  type TimelineItem =
+    | { kind: "event"; minute: number | null; id: string; type: GameEventType; side: string | null; athleteName: string }
+    | { kind: "sub"; minute: number | null; id: string; side: string | null; outName: string; inName: string };
+
+  const timeline: TimelineItem[] = [
+    ...events.map((e) => ({
+      kind: "event" as const,
+      minute: e.minute,
+      id: e.id,
+      type: e.type,
+      side: e.side,
+      athleteName: e.athlete?.name ?? "—"
+    })),
+    ...substitutions.map((s) => ({
+      kind: "sub" as const,
+      minute: s.minute,
+      id: s.id,
+      side: s.side,
+      outName: s.athleteOut?.name ?? "—",
+      inName: s.athleteIn?.name ?? "—"
+    }))
+  ].sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999));
 
   return (
     <div className="space-y-4">
@@ -90,23 +121,25 @@ export function JogoSumulaPage() {
             <div className="flex items-center justify-center gap-8 py-4">
               <div className="text-center">
                 <p className="text-xs font-black uppercase tracking-wide text-slate-500">{redTeamName}</p>
-                <p className="mt-1 text-5xl font-black text-slate-950">{g?.redScore ?? redScore}</p>
+                <p className="mt-1 text-5xl font-black text-slate-950">{g?.redScore ?? goals.filter((e) => e.side === "RED").length}</p>
               </div>
               <p className="text-2xl font-black text-slate-300">×</p>
               <div className="text-center">
                 <p className="text-xs font-black uppercase tracking-wide text-slate-500">{whiteTeamName}</p>
-                <p className="mt-1 text-5xl font-black text-slate-950">{g?.whiteScore ?? whiteScore}</p>
+                <p className="mt-1 text-5xl font-black text-slate-950">{g?.whiteScore ?? goals.filter((e) => e.side === "WHITE").length}</p>
               </div>
             </div>
           </SectionCard>
 
-          {/* Resumo */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {/* Resumo de stats */}
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
             {[
-              { label: "Gols", value: goals.length, color: "text-emerald-600" },
+              { label: "Gols", value: goals.length + ownGoals.length, color: "text-emerald-600" },
               { label: "Assistências", value: assists.length, color: "text-blue-600" },
-              { label: "Cartões amarelos", value: yellows.length, color: "text-amber-600" },
-              { label: "Cartões vermelhos", value: reds.length, color: "text-red-600" }
+              { label: "Substituições", value: substitutions.length, color: "text-slate-700" },
+              { label: "Amarelos", value: yellows.length, color: "text-amber-600" },
+              { label: "Vermelhos", value: reds.length, color: "text-red-600" },
+              { label: "Eventos", value: events.length, color: "text-slate-500" }
             ].map(({ label, value, color }) => (
               <div key={label} className="rounded-lg border border-slate-200 bg-white p-3 text-center shadow-sm">
                 <p className={`text-2xl font-black ${color}`}>{value}</p>
@@ -115,8 +148,8 @@ export function JogoSumulaPage() {
             ))}
           </div>
 
-          {/* Eventos */}
-          {events.length === 0 ? (
+          {/* Timeline unificada */}
+          {timeline.length === 0 ? (
             <SectionCard>
               <div className="py-6 text-center">
                 <ClipboardList size={32} className="mx-auto mb-2 text-slate-300" />
@@ -130,26 +163,46 @@ export function JogoSumulaPage() {
               </div>
             </SectionCard>
           ) : (
-            <SectionCard title="Eventos do jogo" subtitle={`${events.length} eventos`}>
+            <SectionCard title="Linha do tempo" subtitle={`${timeline.length} eventos · ${substitutions.length} substituições`}>
               <div className="space-y-1.5">
-                {events
-                  .sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0))
-                  .map((e) => (
-                    <div key={e.id} className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
+                {timeline.map((item) => {
+                  const teamName = item.side === "RED" ? redTeamName : item.side === "WHITE" ? whiteTeamName : "—";
+                  const teamColor = item.side === "RED" ? "text-red-600" : "text-slate-500";
+
+                  if (item.kind === "sub") {
+                    return (
+                      <div key={item.id} className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
+                        <span className="w-8 shrink-0 text-center text-sm font-black text-slate-400">
+                          {item.minute ?? "?"}′
+                        </span>
+                        <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-xs font-black text-slate-600 flex items-center gap-1">
+                          <ArrowLeftRight size={10} /> Substituição
+                        </span>
+                        <span className="min-w-0 flex-1 text-sm font-semibold text-slate-800 truncate">
+                          <span className="text-red-500">↓ {item.outName}</span>
+                          {" · "}
+                          <span className="text-emerald-600">↑ {item.inName}</span>
+                        </span>
+                        <span className={`shrink-0 text-xs font-semibold ${teamColor}`}>{teamName}</span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={item.id} className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2">
                       <span className="w-8 shrink-0 text-center text-sm font-black text-slate-400">
-                        {e.minute ?? "?"}′
+                        {item.minute ?? "?"}′
                       </span>
-                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-black ${eventTypeColor[e.type]}`}>
-                        {eventTypeLabel[e.type]}
+                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-black ${eventTypeColor[item.type]}`}>
+                        {eventTypeLabel[item.type]}
                       </span>
                       <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">
-                        {e.athlete?.name ?? "—"}
+                        {item.athleteName}
                       </span>
-                      <span className={`shrink-0 text-xs font-semibold ${e.side === "RED" ? "text-red-600" : "text-slate-500"}`}>
-                        {e.side === "RED" ? redTeamName : whiteTeamName}
-                      </span>
+                      <span className={`shrink-0 text-xs font-semibold ${teamColor}`}>{teamName}</span>
                     </div>
-                  ))}
+                  );
+                })}
               </div>
             </SectionCard>
           )}

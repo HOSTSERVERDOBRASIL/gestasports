@@ -541,9 +541,12 @@ export function sortAthletesForPitch<T extends { name: string; position: Athlete
 
 export const eventTypeLabels: Record<GameEventType, string> = {
   GOAL: "Gol",
+  OWN_GOAL: "Gol contra",
   ASSIST: "Assistência",
   YELLOW_CARD: "Cartão amarelo",
-  RED_CARD: "Cartão vermelho"
+  RED_CARD: "Cartão vermelho",
+  PENALTY_SCORED: "Pênalti convertido",
+  PENALTY_MISSED: "Pênalti perdido"
 };
 
 export const buttonStyles = {

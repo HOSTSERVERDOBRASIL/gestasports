@@ -49,9 +49,12 @@ const roleOrder: Record<string, number> = {
 
 const eventLabels: Record<GameEventType, string> = {
   GOAL: "Gol",
+  OWN_GOAL: "Gol contra",
   ASSIST: "Assistência",
   YELLOW_CARD: "Cartão amarelo",
-  RED_CARD: "Cartão vermelho"
+  RED_CARD: "Cartão vermelho",
+  PENALTY_SCORED: "Pênalti",
+  PENALTY_MISSED: "Pênalti perdido"
 };
 
 function formatDateTime(value: string) {

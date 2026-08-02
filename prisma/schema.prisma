@@ -218,9 +218,12 @@ enum LineupRole {
 
 enum EventType {
   GOAL
+  OWN_GOAL
   ASSIST
   YELLOW_CARD
   RED_CARD
+  PENALTY_SCORED
+  PENALTY_MISSED
 }
 
 enum CardType {
