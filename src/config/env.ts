@@ -34,13 +34,7 @@ const envSchema = z.object({
     });
   }
 
-  if (env.NODE_ENV === "production" && (!env.SMTP_HOST || !env.SMTP_PORT || !env.SMTP_FROM)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["SMTP_HOST"],
-      message: "SMTP_HOST, SMTP_PORT e SMTP_FROM são obrigatórios em produção para recuperação de senha."
-    });
-  }
+  // SMTP é opcional — sem ele, recuperação de senha fica desabilitada
 
   if (env.SICOOB_PIX_BASE_URL || env.SICOOB_OAUTH_URL || env.SICOOB_CERT_PFX_PATH || env.SICOOB_CERT_PATH || env.SICOOB_KEY_PATH) {
     if (!env.SICOOB_PIX_BASE_URL || !env.SICOOB_OAUTH_URL) {
