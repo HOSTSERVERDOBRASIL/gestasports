@@ -183,19 +183,21 @@ process.on("SIGTERM", () => {
 
 async function start() {
   if (env.NODE_ENV === "production") {
-    const { execSync } = await import("node:child_process");
-    try {
-      app.log.info("Executando prisma migrate deploy...");
-      execSync("npx prisma migrate deploy", { stdio: "inherit" });
-      app.log.info("Migrations aplicadas com sucesso.");
-    } catch (error) {
-      app.log.error({ err: error }, "Falha ao aplicar migrations");
+    const { spawnSync } = await import("node:child_process");
+    console.log("Executando prisma migrate deploy...");
+    const result = spawnSync("npx", ["prisma", "migrate", "deploy"], {
+      stdio: "inherit",
+      env: process.env
+    });
+    if (result.status !== 0) {
+      console.error("Falha ao aplicar migrations, status:", result.status);
       process.exit(1);
     }
+    console.log("Migrations aplicadas com sucesso.");
   }
 
   await app.listen({ port: env.PORT, host: "0.0.0.0" });
-  app.log.info(`Servidor iniciado na porta ${env.PORT}`);
+  console.log(`Servidor iniciado na porta ${env.PORT}`);
 }
 
 start().catch((error) => {
