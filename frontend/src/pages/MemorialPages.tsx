@@ -65,10 +65,6 @@ type ArchiveReport = {
   uniformHistory?: Array<{ id: string; side: string; seasonLabel: string; seasonYear?: number; name: string; imageUrl?: string; color?: string }>;
 };
 
-type ArchiveKind =
-  | "dashboard" | "games" | "athletes" | "directors" | "titles" | "reports"
-  | "timeline" | "shirts" | "gallery" | "documents" | "awards" | "assets" | "hall";
-
 type ArchiveItemType =
   | "DASHBOARD" | "GAME" | "ATHLETE" | "DIRECTOR" | "TITLE" | "MATCH_REPORT"
   | "TIMELINE" | "SHIRT" | "GALLERY" | "DOCUMENT" | "AWARD" | "ASSET" | "HALL_OF_FAME";

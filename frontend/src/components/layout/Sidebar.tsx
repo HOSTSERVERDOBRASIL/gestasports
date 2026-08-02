@@ -142,99 +142,106 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: Side
             ) : null}
           </div>
 
-          <nav className="fl-sidebar-nav min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-4 lg:px-2">
+          <nav className="fl-sidebar-nav min-h-0 flex-1 overflow-y-auto px-2 py-3">
             {!collapsed ? (
-              <div className="space-y-2 px-1">
+              <div className="mb-3 px-1">
                 <label className="relative block">
-                  <Search size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input
                     value={menuSearch}
                     onChange={(event) => setMenuSearch(event.target.value)}
                     placeholder="Buscar menu"
-                    className={`fl-sidebar-search h-9 w-full rounded-lg border pl-8 pr-2 text-xs font-semibold outline-none ${searchFocusClass}`}
+                    className={`fl-sidebar-search h-8 w-full rounded-md border pl-8 pr-2 text-xs font-semibold outline-none ${searchFocusClass}`}
                   />
                 </label>
-
-                {favoriteItems.length > 1 ? (
-                  <div className="fl-sidebar-favorites rounded-lg border border-white/10 bg-white/[0.02] p-2">
-                    <p className="fl-sidebar-favorites-title px-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">Acesso rápido</p>
-                    <div className="mt-1 space-y-1">
-                      {favoriteItems.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <NavLink
-                            key={`favorite-${item.path}`}
-                            to={item.path}
-                            end={item.path === "/"}
-                            onClick={onCloseMobile}
-                            className={() => {
-                              const isActive = routeMatches(item.path, location.pathname, currentPath);
-                              return (
-                              `fl-sidebar-nav-item fl-sidebar-favorite-link flex min-h-9 items-center gap-2 rounded-lg px-2 text-xs font-bold transition ${
-                                isActive ? `fl-sidebar-nav-active ${activeNavClass}` : "text-slate-300 hover:bg-white/8 hover:text-white"
-                              }`
-                              );
-                            }}
-                          >
-                            <Icon size={15} strokeWidth={2} />
-                            <span className="truncate">{item.label}</span>
-                          </NavLink>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
               </div>
             ) : null}
 
-            {filteredSections.map((section) => (
-              <div key={section.id} className="space-y-1 px-1">
-                      {section.items.map((item) => {
-                        const Icon = item.icon;
-                        const hasActiveChild = item.children?.some((child) => routeMatches(child.path, location.pathname, currentPath)) ?? false;
-                        const isItemActive = routeMatches(item.path, location.pathname, currentPath);
-                        return (
-                          <div key={item.path}>
-                          <NavLink
-                            to={item.path}
-                            end={item.path === "/"}
-                            onClick={onCloseMobile}
-                            className={() =>
-                              `fl-sidebar-nav-item relative flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-bold leading-tight transition ${
-                                isItemActive || hasActiveChild ? `fl-sidebar-nav-active ${activeNavClass}` : "text-slate-300 hover:bg-white/8 hover:text-white"
-                              } ${collapsed ? "lg:justify-center lg:px-0" : ""}`
-                            }
-                            title={item.label}
-                          >
-                            <span className="fl-sidebar-icon grid size-8 shrink-0 place-items-center rounded-lg text-current">
-                              <Icon size={20} strokeWidth={2} />
-                            </span>
-                            <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
-                          </NavLink>
-                          {!collapsed && item.children?.length && (menuSearch.trim() || isItemActive || hasActiveChild) ? (
-                            <div className="fl-sidebar-submenu">
-                              {item.children.map((child) => {
-                                const childActive = routeMatches(child.path, location.pathname, currentPath);
-                                return (
-                                  <NavLink
-                                    key={`${item.path}-${child.label}`}
-                                    to={child.path}
-                                    onClick={onCloseMobile}
-                                    className={`fl-sidebar-subitem ${
-                                      childActive ? `fl-sidebar-subitem-active ${activeSubitemClass}` : "text-slate-500 hover:bg-white/8 hover:text-slate-200"
-                                    }`}
-                                  >
-                                    <span className="block min-w-0 truncate">{child.label}</span>
-                                  </NavLink>
-                                );
-                              })}
-                            </div>
-                          ) : null}
-                          </div>
-                        );
-                      })}
+            {!collapsed && favoriteItems.length > 1 ? (
+              <div className="mb-3 px-1">
+                <div className="fl-sidebar-favorites rounded-lg border border-white/10 bg-white/[0.03] p-1.5">
+                  <p className="fl-sidebar-favorites-title px-1 pb-1 text-[10px] font-black uppercase tracking-[0.1em] text-slate-500">Acesso rápido</p>
+                  <div className="space-y-0.5">
+                    {favoriteItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <NavLink
+                          key={`favorite-${item.path}`}
+                          to={item.path}
+                          end={item.path === "/"}
+                          onClick={onCloseMobile}
+                          className={() => {
+                            const isActive = routeMatches(item.path, location.pathname, currentPath);
+                            return (
+                            `fl-sidebar-nav-item fl-sidebar-favorite-link flex min-h-8 items-center gap-2 rounded-md px-2 text-xs font-bold transition ${
+                              isActive ? `fl-sidebar-nav-active ${activeNavClass}` : "text-slate-400 hover:bg-white/8 hover:text-white"
+                            }`
+                            );
+                          }}
+                        >
+                          <Icon size={14} strokeWidth={2} />
+                          <span className="truncate">{item.label}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            ))}
+            ) : null}
+
+            <div className="space-y-0.5">
+              {filteredSections.map((section, sectionIndex) => (
+                <div key={section.id}>
+                  {!collapsed && section.label && filteredSections.length > 1 && sectionIndex > 0 ? (
+                    <p className="fl-sidebar-section-label">{section.label}</p>
+                  ) : null}
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    const hasActiveChild = item.children?.some((child) => routeMatches(child.path, location.pathname, currentPath)) ?? false;
+                    const isItemActive = routeMatches(item.path, location.pathname, currentPath);
+                    return (
+                      <div key={item.path}>
+                        <NavLink
+                          to={item.path}
+                          end={item.path === "/"}
+                          onClick={onCloseMobile}
+                          className={() =>
+                            `fl-sidebar-nav-item relative flex min-h-[2.625rem] items-center gap-3 rounded-lg px-2.5 text-sm font-bold leading-tight transition ${
+                              isItemActive || hasActiveChild ? `fl-sidebar-nav-active ${activeNavClass}` : "text-slate-300 hover:bg-white/8 hover:text-white"
+                            } ${collapsed ? "lg:justify-center lg:px-0" : ""}`
+                          }
+                          title={item.label}
+                        >
+                          <span className={`fl-sidebar-icon grid shrink-0 place-items-center rounded-lg text-current ${collapsed ? "size-10" : "size-8"}`}>
+                            <Icon size={collapsed ? 22 : 19} strokeWidth={2} />
+                          </span>
+                          <span className={collapsed ? "lg:hidden" : ""}>{item.label}</span>
+                        </NavLink>
+                        {!collapsed && item.children?.length && (menuSearch.trim() || isItemActive || hasActiveChild) ? (
+                          <div className="fl-sidebar-submenu">
+                            {item.children.map((child) => {
+                              const childActive = routeMatches(child.path, location.pathname, currentPath);
+                              return (
+                                <NavLink
+                                  key={`${item.path}-${child.label}`}
+                                  to={child.path}
+                                  onClick={onCloseMobile}
+                                  className={`fl-sidebar-subitem ${
+                                    childActive ? `fl-sidebar-subitem-active ${activeSubitemClass}` : "text-slate-500 hover:bg-white/8 hover:text-slate-200"
+                                  }`}
+                                >
+                                  <span className="block min-w-0 truncate">{child.label}</span>
+                                </NavLink>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </nav>
 
           <div className="shrink-0 border-t border-white/10 p-2">

@@ -331,6 +331,7 @@ export function GamesPage() {
         history: null,
         playersPerTeam: defaultPlayersPerTeam,
         closedMode: true,
+        blockDelinquentFromLineup: false,
         inviteCode: null,
         uniform1Name: DEFAULT_RED_UNIFORM_NAME,
         uniform1Season: null,
@@ -1322,7 +1323,7 @@ export function GamesPage() {
       const blockedEntries = entries
         .map((entry) => ({
           athlete: entry.athlete,
-          reason: lineupBlockReason(entry.athlete),
+          reason: lineupBlockReason(entry.athlete, groupSettings.blockDelinquentFromLineup),
         }))
         .filter((entry): entry is { athlete: AthleteProfile; reason: string } =>
           Boolean(entry.reason),
@@ -1415,7 +1416,7 @@ export function GamesPage() {
       const selectedSet = new Set(selectionIds ?? selectedPlayerIds);
       const selectedAthletes = athletes.filter(
         (athlete) =>
-          selectedSet.has(athlete.id) && isLineupFieldAthlete(athlete),
+          selectedSet.has(athlete.id) && isLineupFieldAthlete(athlete, groupSettings.blockDelinquentFromLineup),
       );
 
       if (selectedAthletes.length === 0) {
@@ -1902,12 +1903,12 @@ export function GamesPage() {
   );
   const athletesAvailableForRole = athletesAvailable.filter((athlete) => {
     if (lineupForm.role === "GOALKEEPER") {
-      return canEnterLineup(athlete) && isGoalkeeperAthlete(athlete);
+      return canEnterLineup(athlete, groupSettings.blockDelinquentFromLineup) && isGoalkeeperAthlete(athlete);
     }
     if (lineupForm.role === "STARTER") {
-      return isLineupFieldAthlete(athlete);
+      return isLineupFieldAthlete(athlete, groupSettings.blockDelinquentFromLineup);
     }
-    return canEnterLineup(athlete);
+    return canEnterLineup(athlete, groupSettings.blockDelinquentFromLineup);
   });
   const athletesForLineupForm =
     lineupFormSelectedAthlete &&
@@ -1929,7 +1930,7 @@ export function GamesPage() {
             lineup.confirmedAt &&
             lineup.presence &&
             athlete
-            ? isLineupFieldAthlete(athlete)
+            ? isLineupFieldAthlete(athlete, groupSettings.blockDelinquentFromLineup)
             : false;
         })
         .map((lineup) => lineup.athleteId),
@@ -1950,12 +1951,12 @@ export function GamesPage() {
   const unconfirmedAthleteIds = athletes
     .filter(
       (athlete) =>
-        isLineupFieldAthlete(athlete) &&
+        isLineupFieldAthlete(athlete, groupSettings.blockDelinquentFromLineup) &&
         !confirmedOrManagedAthleteSet.has(athlete.id),
     )
     .map((athlete) => athlete.id);
   const activeDraftFieldAthleteIds = athletes
-    .filter(isLineupFieldAthlete)
+    .filter((a) => isLineupFieldAthlete(a))
     .map((athlete) => athlete.id);
   const activeDraftContractedGoalkeeperIds = Array.from(
     new Set([
@@ -1963,7 +1964,7 @@ export function GamesPage() {
       ...athletes
         .filter(
           (athlete) =>
-            canEnterLineup(athlete) &&
+            canEnterLineup(athlete, groupSettings.blockDelinquentFromLineup) &&
             athlete.position === "GOALKEEPER" &&
             (athlete.linkType === "CONTRACTED" || athlete.linkType === "GUEST"),
         )
@@ -1981,12 +1982,12 @@ export function GamesPage() {
     selectedPlayerIds.length > 0 ? selectedPlayerIds : draftFallbackIds;
   const draftCandidateFieldCount = athletes.filter(
     (athlete) =>
-      draftCandidateIds.includes(athlete.id) && isLineupFieldAthlete(athlete),
+      draftCandidateIds.includes(athlete.id) && isLineupFieldAthlete(athlete, groupSettings.blockDelinquentFromLineup),
   ).length;
   const draftCandidateContractedGoalkeeperCount = athletes.filter(
     (athlete) =>
       draftCandidateIds.includes(athlete.id) &&
-      canEnterLineup(athlete) &&
+      canEnterLineup(athlete, groupSettings.blockDelinquentFromLineup) &&
       athlete.position === "GOALKEEPER" &&
       (athlete.linkType === "CONTRACTED" || athlete.linkType === "GUEST"),
   ).length;
@@ -2018,7 +2019,7 @@ export function GamesPage() {
     effectiveDraftCandidateIds.includes(athlete.id),
   );
   const eligibleDraftCandidatePlayers =
-    draftCandidatePlayers.filter(canEnterLineup);
+    draftCandidatePlayers.filter((a) => canEnterLineup(a));
   const hasValidDraftCaptains =
     !draftCaptains.RED && !draftCaptains.WHITE
       ? true
@@ -5752,7 +5753,7 @@ export function GamesPage() {
                     hint: "Confirmados, adicionados pelo gestor ou selecionados manualmente.",
                     tone: "emerald",
                     players: athletes.filter((athlete) => {
-                      if (!isLineupFieldAthlete(athlete)) return false;
+                      if (!isLineupFieldAthlete(athlete, groupSettings.blockDelinquentFromLineup)) return false;
                       const lineup = selectedGameLineupByAthleteId.get(
                         athlete.id,
                       );
@@ -5773,7 +5774,7 @@ export function GamesPage() {
                     hint: "Atletas fora do sorteio, pendentes ou sem convocação.",
                     tone: "slate",
                     players: athletes.filter((athlete) => {
-                      if (!isLineupFieldAthlete(athlete)) return false;
+                      if (!isLineupFieldAthlete(athlete, groupSettings.blockDelinquentFromLineup)) return false;
                       const lineup = selectedGameLineupByAthleteId.get(
                         athlete.id,
                       );
@@ -7004,7 +7005,7 @@ export function GamesPage() {
                   const confirmedForGame = confirmedOrManagedAthleteSet.has(
                     athlete.id,
                   );
-                  const eligibleForDraft = canEnterLineup(athlete);
+                  const eligibleForDraft = canEnterLineup(athlete, groupSettings.blockDelinquentFromLineup);
                   const selected = selectedPlayerIds.includes(athlete.id);
                   return (
                     <button

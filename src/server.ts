@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import fastifyStatic from "@fastify/static";
 import fs from "node:fs";
 import path from "node:path";
@@ -76,6 +77,21 @@ if (env.NODE_ENV === "production") {
 await app.register(tenantPlugin);
 await app.register(authPlugin);
 await app.register(auditPlugin);
+
+/*
+ * No brute-force protection existed anywhere in the app: login, password
+ * reset, and invite-registration could be hit as fast as the network
+ * allows, with no lockout. The global limit here is generous (it only
+ * exists as a backstop against scripted abuse of the whole API); the
+ * real protection is the tighter, IP+email-based limits set directly on
+ * /auth/login, /auth/password/forgot, /auth/password/reset and
+ * /auth/invite-register in auth.routes.ts.
+ */
+await app.register(rateLimit, {
+  global: true,
+  max: 300,
+  timeWindow: "1 minute"
+});
 
 if (fs.existsSync(frontendDistDir)) {
   await app.register(fastifyStatic, {

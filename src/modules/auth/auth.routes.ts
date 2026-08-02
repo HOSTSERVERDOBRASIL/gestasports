@@ -238,7 +238,10 @@ export async function authRoutes(app: FastifyInstance) {
     };
   });
 
-  app.post("/auth/invite-register", async (request, reply) => {
+  app.post(
+    "/auth/invite-register",
+    { config: { rateLimit: { max: 10, timeWindow: "10 minutes" } } },
+    async (request, reply) => {
     const payload = inviteRegisterSchema.parse(request.body);
     const tenantId = request.tenant?.id;
 
@@ -336,7 +339,10 @@ export async function authRoutes(app: FastifyInstance) {
     });
   });
 
-  app.post("/auth/login", async (request, reply) => {
+  app.post(
+    "/auth/login",
+    { config: { rateLimit: { max: 8, timeWindow: "5 minutes" } } },
+    async (request, reply) => {
     const payload = loginSchema.parse(request.body);
     const tenantId = request.tenant?.id || null;
     const allowDevelopmentTenantFallback = env.NODE_ENV !== "production" && !tenantId;
@@ -448,7 +454,10 @@ export async function authRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  app.post("/auth/password/forgot", async (request, reply) => {
+  app.post(
+    "/auth/password/forgot",
+    { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } },
+    async (request, reply) => {
     const payload = forgotPasswordSchema.parse(request.body);
     const tenantId = request.tenant?.id ?? null;
     const user = await prisma.user.findFirst({
@@ -529,7 +538,10 @@ export async function authRoutes(app: FastifyInstance) {
     };
   });
 
-  app.post("/auth/password/reset", async (request, reply) => {
+  app.post(
+    "/auth/password/reset",
+    { config: { rateLimit: { max: 8, timeWindow: "15 minutes" } } },
+    async (request, reply) => {
     const payload = resetPasswordSchema.parse(request.body);
     const tokenHash = hashResetToken(payload.token);
     const resetToken = await prisma.passwordResetToken.findUnique({

@@ -60,7 +60,7 @@ export function GameAgendaCalendar({
             const selected = selectedDate === cell.key;
             const hasFinished = dayGames.some((game) => game.status === "FINISHED");
             const hasLineupDay = dayGames.some((game) => (game.lineups ?? []).some((lineup) => hasLineupAthlete(lineup) && lineup.role !== "ABSENT"));
-            const dotColor = hasFinished ? "bg-red-600" : hasLineupDay ? "bg-emerald-600" : "bg-blue-500";
+            const dotColor = hasFinished ? "bg-slate-500" : hasLineupDay ? "bg-emerald-600" : "bg-blue-500";
 
             return (
               <button
@@ -84,7 +84,7 @@ export function GameAgendaCalendar({
       <div className="mt-4 flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700">
         <span className="inline-flex items-center gap-2"><span className="size-2.5 rounded-full bg-blue-500" />Aberto</span>
         <span className="inline-flex items-center gap-2"><span className="size-2.5 rounded-full bg-emerald-600" />Confirmado</span>
-        <span className="inline-flex items-center gap-2"><span className="size-2.5 rounded-full bg-red-600" />Finalizado</span>
+        <span className="inline-flex items-center gap-2"><span className="size-2.5 rounded-full bg-slate-500" />Finalizado</span>
         <span className="inline-flex items-center gap-2 text-indigo-700"><CloudRain size={16} />Cancelado (Clima)</span>
       </div>
 

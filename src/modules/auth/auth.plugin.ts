@@ -35,6 +35,27 @@ function applyAuthenticatedTenant(request: FastifyRequest, user: JwtUser) {
   }
 }
 
+/**
+ * CRITICAL: without this check, a valid token issued for tenant A could be
+ * replayed against tenant B's hostname/domain (or, on the shared platform
+ * host, against any other tenant simply by sending a different
+ * "X-Tenant-Slug" header) and the server would scope every Prisma query to
+ * tenant B — because request.tenant (resolved from host/header) always won
+ * over user.tenantId (the token's real claim) via `??` fallbacks used
+ * throughout the codebase. This is a full cross-tenant data breach vector:
+ * any authenticated user on any tenant could read/write any other tenant's
+ * athletes, finances, members, etc. by changing one request header. This
+ * check makes sure the token's tenant and the resolved tenant always agree
+ * before any tenant-scoped query runs.
+ */
+function isTenantMismatch(request: FastifyRequest, user: JwtUser) {
+  if (effectiveRolesFor(user).includes("SUPERADMIN")) {
+    return false;
+  }
+
+  return Boolean(request.tenant && user.tenantId && request.tenant.id !== user.tenantId);
+}
+
 function isTenantBlocked(request: FastifyRequest, user: JwtUser) {
   if (effectiveRolesFor(user).includes("SUPERADMIN")) {
     return false;
@@ -165,6 +186,10 @@ export const authPlugin = fp(async (app) => {
       return reply.status(401).send({ message: "Não autorizado" });
     }
 
+    if (isTenantMismatch(request, user)) {
+      return reply.status(403).send({ code: "TENANT_MISMATCH", message: "Este acesso não pertence a este ambiente." });
+    }
+
     if (isTenantBlocked(request, user)) {
       return reply.status(402).send(blockedTenantPayload(request));
     }
@@ -197,6 +222,11 @@ export const authPlugin = fp(async (app) => {
 
       if (!directlyAuthorized && !sportsDirectorAuthorized) {
         reply.status(403).send({ message: "Sem permissão para esta ação" });
+        return;
+      }
+
+      if (isTenantMismatch(request, user)) {
+        reply.status(403).send({ code: "TENANT_MISMATCH", message: "Este acesso não pertence a este ambiente." });
         return;
       }
 

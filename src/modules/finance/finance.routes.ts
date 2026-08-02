@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import crypto from "node:crypto";
 import { z } from "zod";
 import {
   AssociateStatus,
@@ -436,6 +437,17 @@ async function settleMonthlyFeeIncome(input: {
   });
 }
 
+function secretsMatch(provided: string, expected: string) {
+  const providedBuf = Buffer.from(provided);
+  const expectedBuf = Buffer.from(expected);
+  // timingSafeEqual throws if lengths differ, and length itself is not
+  // secret, so it's fine to branch on it before the constant-time compare.
+  if (providedBuf.length !== expectedBuf.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(providedBuf, expectedBuf);
+}
+
 function readWebhookSecret(request: { headers: Record<string, string | string[] | undefined> }) {
   const directSecret = request.headers["x-gestasports-webhook-secret"];
   if (typeof directSecret === "string" && directSecret.trim()) {
@@ -507,6 +519,27 @@ async function settlePaymentFromPixWebhook(input: {
   provider: string;
   rawPayload: unknown;
 }) {
+  /*
+   * PIX providers commonly retry webhook delivery (on timeout, non-2xx, or
+   * just duplicate notifications), so this can legitimately be called twice
+   * for the same payment at nearly the same time. The previous version did
+   * a plain findUnique to check `status !== PAID` and then a separate
+   * update — classic check-then-act race: two concurrent calls could both
+   * read "not yet paid" before either write landed, and both would then
+   * book a duplicate income entry, send two confirmation emails, and write
+   * two audit logs for a single real payment.
+   *
+   * updateMany with `status: { not: PAID }` in the WHERE clause is
+   * atomic at the database level: only one of two concurrent requests can
+   * ever flip the row, because the second UPDATE runs after the first has
+   * committed and its WHERE clause no longer matches. `count` tells us
+   * which one we were.
+   */
+  const claim = await prisma.payment.updateMany({
+    where: { id: input.paymentId, status: { not: PaymentStatus.PAID } },
+    data: { status: PaymentStatus.PAID, paidAt: input.paidAt }
+  });
+
   const payment = await prisma.payment.findUnique({
     where: { id: input.paymentId },
     include: { associate: true }
@@ -516,18 +549,13 @@ async function settlePaymentFromPixWebhook(input: {
     return null;
   }
 
-  if (payment.status === PaymentStatus.PAID) {
+  if (claim.count === 0) {
+    // Already settled by an earlier call (or another concurrent one that won
+    // the race) - report success without re-running any side effect.
     return { payment, changed: false };
   }
 
-  const updated = await prisma.payment.update({
-    where: { id: payment.id },
-    data: {
-      status: PaymentStatus.PAID,
-      paidAt: input.paidAt
-    },
-    include: { associate: true }
-  });
+  const updated = payment;
 
   await prisma.associate.update({
     where: { id: updated.associateId },
@@ -1679,7 +1707,7 @@ export async function financeRoutes(app: FastifyInstance) {
     }
 
     const providedSecret = readWebhookSecret(request);
-    if (!providedSecret || providedSecret !== settings.providerWebhookSecret) {
+    if (!providedSecret || !secretsMatch(providedSecret, settings.providerWebhookSecret)) {
       return reply.status(401).send({ message: "Webhook Pix não autorizado" });
     }
 

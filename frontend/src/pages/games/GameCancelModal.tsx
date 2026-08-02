@@ -98,7 +98,7 @@ export function GameCancelModal({
           </button>
           <button
             type="button"
-            className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-red-600 px-4 text-sm font-black text-white hover:bg-red-700 disabled:opacity-60"
+            className="fl-danger-action inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm font-black disabled:opacity-60"
             disabled={confirming}
             onClick={onConfirm}
           >

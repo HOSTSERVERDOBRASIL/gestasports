@@ -744,6 +744,10 @@ model GroupSettings {
   history              String?
   playersPerTeam       Int      @default(11)
   closedMode           Boolean  @default(true)
+  // Off by default so no existing club's behavior changes silently: turning
+  // it on means an athlete marked DELINQUENT, or whose associate is LATE on
+  // dues, can no longer be drafted/entered into a game lineup.
+  blockDelinquentFromLineup Boolean @default(false)
   inviteCode           String?
   uniform1Name         String   @default("Time A")
   uniform1Season       String?

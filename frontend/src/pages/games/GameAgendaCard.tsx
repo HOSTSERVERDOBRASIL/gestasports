@@ -113,10 +113,10 @@ export function GameAgendaCard({
   ];
 
   return (
-    <article className={`min-w-0 rounded-lg border p-4 ${selected ? "border-red-300 bg-red-50/60" : "border-slate-200 bg-white"}`}>
+    <article className={`min-w-0 rounded-lg border p-4 ${selected ? "border-[var(--brand-primary)]/40 bg-[var(--brand-primary)]/5" : "border-slate-200 bg-white"}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <span className={`mb-2 inline-flex rounded-md px-2.5 py-1 text-xs font-black ${game.status === "FINISHED" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
+          <span className={`mb-2 inline-flex rounded-md px-2.5 py-1 text-xs font-black ${game.status === "FINISHED" ? "bg-slate-200 text-slate-700" : "bg-blue-100 text-blue-700"}`}>
             {game.status === "FINISHED" ? "Finalizado" : "Aberto"}
           </span>
           <h3 className="truncate text-lg font-black text-slate-950">{gameTypeLabels[game.type]} - {game.location}</h3>
@@ -176,7 +176,7 @@ export function GameAgendaCard({
         <button type="button" className={buttonStyles.secondary} onClick={() => onEdit(game)}>Editar</button>
         <button
           type="button"
-          className="grid size-10 place-items-center rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-60"
+          className="fl-danger-action grid size-10 place-items-center rounded-lg border border-transparent disabled:opacity-60"
           disabled={cancelPending}
           onClick={() => onCancel(game)}
           title="Cancelar jogo"

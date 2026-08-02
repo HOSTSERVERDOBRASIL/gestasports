@@ -105,13 +105,30 @@ export function setTimePartOnInput(value: string, nextTime: string) {
   return `${date}T${nextTime}`;
 }
 
-export function canEnterLineup(athlete: AthleteProfile) {
+/**
+ * Whether an athlete can be drafted/entered into a game lineup.
+ *
+ * `blockDelinquent` mirrors the club's `blockDelinquentFromLineup` setting
+ * (see GroupSettings). It defaults to false so callers that don't pass it
+ * keep today's behavior: an athlete whose own status is DELINQUENT, or
+ * whose associate is LATE on dues, is still allowed to play — only
+ * INACTIVE/SUSPENDED athletes and INACTIVE associates are blocked. Pass the
+ * club's actual setting explicitly wherever this is used for real draft
+ * decisions, not just this default.
+ */
+export function canEnterLineup(athlete: AthleteProfile, blockDelinquent = false) {
   const medicallyAvailable = athlete.medicalStatus !== "INJURED" && athlete.medicalStatus !== "TREATMENT";
-  return medicallyAvailable && athlete.status !== "INACTIVE" && athlete.status !== "SUSPENDED" && athlete.associate?.status !== "INACTIVE";
+  const statusBlocked = blockDelinquent
+    ? athlete.status === "INACTIVE" || athlete.status === "SUSPENDED" || athlete.status === "DELINQUENT"
+    : athlete.status === "INACTIVE" || athlete.status === "SUSPENDED";
+  const associateBlocked = blockDelinquent
+    ? athlete.associate?.status === "INACTIVE" || athlete.associate?.status === "LATE"
+    : athlete.associate?.status === "INACTIVE";
+  return medicallyAvailable && !statusBlocked && !associateBlocked;
 }
 
-export function isLineupFieldAthlete(athlete: AthleteProfile) {
-  return canEnterLineup(athlete) && athlete.position !== "GOALKEEPER" && athlete.position !== "BOTH";
+export function isLineupFieldAthlete(athlete: AthleteProfile, blockDelinquent = false) {
+  return canEnterLineup(athlete, blockDelinquent) && athlete.position !== "GOALKEEPER" && athlete.position !== "BOTH";
 }
 
 export function isGoalkeeperAthlete(athlete: Pick<AthleteProfile, "position"> | { position: string | null }) {
@@ -122,8 +139,8 @@ export function hasLineupAthlete(lineup: GameLineup | null | undefined): lineup 
   return Boolean(lineup && hasAthleteIdentity(lineup.athlete));
 }
 
-export function lineupBlockReason(athlete: AthleteProfile) {
-  if (athlete.status !== "ACTIVE") {
+export function lineupBlockReason(athlete: AthleteProfile, blockDelinquent = false) {
+  if (athlete.status === "INACTIVE" || athlete.status === "SUSPENDED") {
     const labels: Record<AthleteStatus, string> = {
       ACTIVE: "ativo",
       DELINQUENT: "inadimplente",
@@ -133,8 +150,16 @@ export function lineupBlockReason(athlete: AthleteProfile) {
     return `status ${labels[athlete.status] ?? athlete.status}`;
   }
 
+  if (blockDelinquent && athlete.status === "DELINQUENT") {
+    return "status inadimplente";
+  }
+
   if (athlete.associate?.status === "INACTIVE") {
     return "associado inativo";
+  }
+
+  if (blockDelinquent && athlete.associate?.status === "LATE") {
+    return "associado com mensalidade atrasada";
   }
 
   if (athlete.medicalStatus === "INJURED") {
@@ -522,9 +547,10 @@ export const eventTypeLabels: Record<GameEventType, string> = {
 };
 
 export const buttonStyles = {
-  primary: "rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60",
+  primary: "fl-brand-primary-action rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:opacity-60",
   secondary: "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60",
-  danger: "rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60",
+  danger: "fl-danger-action rounded-lg border border-transparent px-3 py-2 text-sm font-semibold disabled:opacity-60",
+  dangerOutline: "rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60",
   info: "rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-60"
 };
 

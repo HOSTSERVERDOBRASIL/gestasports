@@ -1012,6 +1012,7 @@ export type GroupSettings = {
   history: string | null;
   playersPerTeam: number;
   closedMode: boolean;
+  blockDelinquentFromLineup: boolean;
   inviteCode: string | null;
   uniform1Name: string;
   uniform1Season: string | null;
