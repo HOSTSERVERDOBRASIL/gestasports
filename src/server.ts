@@ -189,7 +189,7 @@ async function start() {
       execSync("npx prisma migrate deploy", { stdio: "inherit" });
       app.log.info("Migrations aplicadas com sucesso.");
     } catch (error) {
-      app.log.error("Falha ao aplicar migrations", error);
+      app.log.error({ err: error }, "Falha ao aplicar migrations");
       process.exit(1);
     }
   }
