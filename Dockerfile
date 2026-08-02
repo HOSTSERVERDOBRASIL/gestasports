@@ -13,7 +13,7 @@ RUN npm --prefix frontend ci
 FROM deps AS build
 
 COPY prisma ./prisma
-COPY prisma.config.ts tsconfig.json ./
+COPY tsconfig.json ./
 COPY src ./src
 COPY frontend ./frontend
 
@@ -33,7 +33,6 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/frontend/dist ./frontend/dist
 COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 
 EXPOSE 3333
 
