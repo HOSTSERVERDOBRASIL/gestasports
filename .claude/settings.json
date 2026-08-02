@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.leagueapps.com)",
+      "WebFetch(domain:www.upperhand.com)",
+      "WebFetch(domain:www.sportmember.co.uk)",
+      "WebFetch(domain:www.stacksports.com)",
+      "WebFetch(domain:www.sportigo.com)",
+      "WebFetch(domain:footstats.com.br)",
+      "WebFetch(domain:www.footstats.com.br)",
+      "WebFetch(domain:placarfc.com.br)",
+      "WebFetch(domain:www.golfacil.com.br)"
+    ]
+  }
+}
