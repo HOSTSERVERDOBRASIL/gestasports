@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import {
   Activity,
   BarChart3,
@@ -10,10 +10,12 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Coins,
   CreditCard,
   Download,
   Heart,
+  Home,
   LogOut,
   MapPin,
   Medal,
@@ -21,6 +23,7 @@ import {
   QrCode,
   Settings,
   Share2,
+  ShieldCheck,
   Star,
   Target,
   Trophy,
@@ -58,8 +61,8 @@ function APStat({ label, value, icon, helper }: { label: string; value: string |
   );
 }
 
-function APCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <article className={`ap-card ${className}`}>{children}</article>;
+function APCard({ children, className = "", style, onClick }: { children: React.ReactNode; className?: string; style?: React.CSSProperties; onClick?: () => void }) {
+  return <article className={`ap-card ${className}`} style={style} onClick={onClick}>{children}</article>;
 }
 
 function APSectionTitle({ children }: { children: React.ReactNode }) {
@@ -112,24 +115,94 @@ function APTopbar({ name, photo, notifications = 0, onBack, action }: { name: st
   );
 }
 
+const AP_NAV_ITEMS = [
+  { id: "dashboard", label: "Dashboard", icon: <Home size={18} />, path: "/atleta" },
+  { id: "jogos", label: "Jogos", icon: <Trophy size={18} />, path: "/atleta/jogos" },
+  { id: "desempenho", label: "Desempenho", icon: <Activity size={18} />, path: "/atleta/desempenho" },
+  { id: "financeiro", label: "Financeiro", icon: <Coins size={18} />, path: "/atleta/financeiro" },
+  { id: "saude", label: "Saúde", icon: <Heart size={18} />, path: "/atleta/saude" },
+  { id: "perfil", label: "Perfil", icon: <UserRound size={18} />, path: "/atleta/perfil" },
+];
+
 function APNav({ active }: { active: string }) {
-  const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: <BarChart3 size={20} />, path: "/atleta" },
-    { id: "jogos", label: "Jogos", icon: <Trophy size={20} />, path: "/atleta/jogos" },
-    { id: "desempenho", label: "Desempenho", icon: <Activity size={20} />, path: "/atleta/desempenho" },
-    { id: "financeiro", label: "Financeiro", icon: <Coins size={20} />, path: "/atleta/financeiro" },
-    { id: "saude", label: "Saúde", icon: <Heart size={20} />, path: "/atleta/saude" },
-    { id: "perfil", label: "Perfil", icon: <UserRound size={20} />, path: "/atleta/perfil" },
-  ];
   return (
     <nav className="ap-nav">
-      {navItems.map((item) => (
+      {AP_NAV_ITEMS.map((item) => (
         <Link key={item.id} to={item.path} className={`ap-nav__item ${active === item.id ? "ap-nav__item--active" : ""}`}>
           {item.icon}
           <span>{item.label}</span>
         </Link>
       ))}
     </nav>
+  );
+}
+
+function APSidebar({ name, photo }: { name: string; photo?: string | null }) {
+  const location = useLocation();
+  const { logout } = useAuth();
+  const active = AP_NAV_ITEMS.reduce((found, item) => {
+    if (location.pathname.startsWith(item.path) && item.path.length > found.length) return item.path;
+    return found;
+  }, "/atleta");
+
+  return (
+    <aside className="ap-sidebar">
+      <div className="ap-sidebar__logo">
+        <div className="ap-sidebar__club-name">
+          <span style={{ fontSize: "1.4rem" }}>⚽</span>
+        </div>
+        <div>
+          <div className="ap-sidebar__club-name">Portal do Atleta</div>
+          <div className="ap-sidebar__club-sub">GestaSports</div>
+        </div>
+      </div>
+
+      <nav className="ap-sidebar__nav">
+        {AP_NAV_ITEMS.map((item) => (
+          <Link
+            key={item.id}
+            to={item.path}
+            className={`ap-sidebar__item ${active === item.path ? "ap-sidebar__item--active" : ""}`}
+          >
+            {item.icon}
+            <span>{item.label}</span>
+          </Link>
+        ))}
+
+        <div className="ap-sidebar__section">Memorial</div>
+        <Link to="/acervo" className="ap-sidebar__item">
+          <Trophy size={18} />
+          <span>Acervo do clube</span>
+        </Link>
+        <Link to="/atleta/carreira" className="ap-sidebar__item">
+          <Star size={18} />
+          <span>Minha carreira</span>
+        </Link>
+        <Link to="/atleta/conquistas" className="ap-sidebar__item">
+          <Medal size={18} />
+          <span>Conquistas</span>
+        </Link>
+      </nav>
+
+      <div className="ap-sidebar__user">
+        {photo ? (
+          <img src={photo} alt={name} className="ap-sidebar__avatar" />
+        ) : (
+          <div className="ap-sidebar__avatar">{initials(name)}</div>
+        )}
+        <div>
+          <div className="ap-sidebar__user-name">{name.split(" ")[0]}</div>
+          <div className="ap-sidebar__user-role">Atleta</div>
+        </div>
+        <button
+          type="button"
+          onClick={logout}
+          style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", marginLeft: "auto" }}
+        >
+          <LogOut size={15} />
+        </button>
+      </div>
+    </aside>
   );
 }
 
@@ -169,32 +242,44 @@ export function AthletePortalDashboardPage() {
   const payment = currentPaymentQuery.data?.payment ?? overview?.currentPayment;
   const isPending = payment?.status !== "PAID";
 
-  return (
-    <div className="ap-page">
-      <APTopbar name={name} photo={photo} notifications={3} />
+  const positionLabels: Record<string, string> = {
+    GOALKEEPER: "Goleiro", DEFENDER: "Zagueiro", FULLBACK: "Lateral",
+    MIDFIELDER: "Meia", FORWARD: "Atacante", LINE: "Linha"
+  };
 
-      <div className="ap-page-body">
-        {/* Hero da pessoa */}
-        <APCard className="ap-dashboard-hero">
-          <div className="ap-dashboard-hero__left">
-            {photo ? (
-              <img src={photo} alt={name} className="ap-dashboard-hero__photo" />
-            ) : (
-              <span className="ap-dashboard-hero__initials">{initials(name)}</span>
-            )}
-            <div>
-              <p className="ap-dashboard-hero__greeting">Olá, {name.split(" ")[0]}! 👋</p>
-              <p className="ap-dashboard-hero__sub">Aqui está o seu resumo pessoal.</p>
-              <div className="ap-dashboard-hero__chips">
-                {position ? <APBadge tone="default">{position}</APBadge> : null}
-                {overview?.athlete?.medicalStatus === "CLEARED" ? <APBadge tone="success">Liberado</APBadge> : overview?.athlete?.medicalStatus ? <APBadge tone="danger">Vetado</APBadge> : null}
+  return (
+    <div className="ap-root">
+      <APSidebar name={name} photo={photo} />
+      <div className="ap-page">
+        <APTopbar name={name} photo={photo} notifications={3} />
+
+        <div className="ap-page-body">
+          {/* Hero da pessoa */}
+          <APCard className="ap-dashboard-hero">
+            <div className="ap-dashboard-hero__left">
+              {photo ? (
+                <img src={photo} alt={name} className="ap-dashboard-hero__photo" />
+              ) : (
+                <span className="ap-dashboard-hero__initials">{initials(name)}</span>
+              )}
+              <div>
+                <p className="ap-dashboard-hero__greeting">Olá, {name.split(" ")[0]}! 👋</p>
+                <p className="ap-dashboard-hero__sub">Aqui está o seu resumo pessoal na temporada {now.year}.</p>
+                <div className="ap-dashboard-hero__chips">
+                  {position ? <APBadge tone="default">{positionLabels[position] ?? position}</APBadge> : null}
+                  {(overview?.athlete as any)?.jerseyNumber ? <APBadge tone="info">Nº {(overview?.athlete as any).jerseyNumber}</APBadge> : null}
+                  {overview?.athlete?.medicalStatus === "CLEARED"
+                    ? <APBadge tone="success"><ShieldCheck size={10} style={{ marginRight: 3 }} />Liberado</APBadge>
+                    : overview?.athlete?.medicalStatus
+                    ? <APBadge tone="danger">Vetado</APBadge>
+                    : null}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="ap-dashboard-hero__right">
-            <p className="ap-dashboard-hero__season-label">Temporada {now.year}</p>
-          </div>
-        </APCard>
+            <div className="ap-dashboard-hero__right">
+              <p className="ap-dashboard-hero__season-label">Temporada {now.year}</p>
+            </div>
+          </APCard>
 
         {/* Próximo jogo */}
         {nextGame ? (
@@ -289,9 +374,10 @@ export function AthletePortalDashboardPage() {
             </APCard>
           </>
         ) : null}
-      </div>
+        </div>
 
-      <APNav active="dashboard" />
+        <APNav active="dashboard" />
+      </div>
     </div>
   );
 }
@@ -303,84 +389,211 @@ export function AthletePortalGamesPage() {
   const name = overview?.athlete?.name ?? overview?.associate?.name ?? user?.name ?? "Atleta";
   const photo = overview?.athlete?.photoUrl ?? null;
   const [tab, setTab] = useState<"proximos" | "historico">("proximos");
+  const [selectedGame, setSelectedGame] = useState<string | null>(null);
 
-  const upcomingGames = overview?.nextGame ? [overview.nextGame] : [];
+  const nextGame = overview?.nextGame;
   const recentGames = overview?.recentGames ?? [];
+  const showConvocacao = selectedGame && nextGame && selectedGame === nextGame.gameId;
+
+  if (showConvocacao && nextGame) {
+    const weekday = nextGame.date
+      ? new Date(nextGame.date).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })
+      : null;
+    const time = nextGame.date
+      ? new Date(nextGame.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+      : null;
+
+    return (
+      <div className="ap-root">
+        <APSidebar name={name} photo={photo} />
+        <div className="ap-page">
+          <APTopbar
+            name={name}
+            photo={photo}
+            onBack={() => setSelectedGame(null)}
+            action={<span className="ap-topbar__title">Convocação</span>}
+          />
+          <div className="ap-page-body">
+            <div className="ap-convocacao-detail">
+              {/* Hero da partida */}
+              <div className="ap-convocacao-detail__hero">
+                <APBadge tone="danger">CONVOCADO</APBadge>
+                <p className="ap-convocacao-detail__competition">{(nextGame as any).competition ?? "Jogo oficial"}</p>
+                <div className="ap-convocacao-detail__matchup">
+                  <div className="ap-convocacao-detail__team">
+                    <div className="ap-convocacao-detail__team-logo">⚽</div>
+                    <span className="ap-convocacao-detail__team-name">{nextGame.redTeamName ?? "Time A"}</span>
+                  </div>
+                  <span className="ap-convocacao-detail__vs">X</span>
+                  <div className="ap-convocacao-detail__team">
+                    <div className="ap-convocacao-detail__team-logo">⚽</div>
+                    <span className="ap-convocacao-detail__team-name">{nextGame.whiteTeamName ?? "Time B"}</span>
+                  </div>
+                </div>
+                <div className="ap-convocacao-detail__game-info">
+                  {weekday ? <span><CalendarDays size={13} />{weekday}</span> : null}
+                  {time ? <span><Clock size={13} />{time}</span> : null}
+                  {nextGame.location ? <span><MapPin size={13} />{nextGame.location}</span> : null}
+                </div>
+              </div>
+
+              {/* Informações da convocação */}
+              <APCard>
+                <APSectionTitle>Informações da convocação</APSectionTitle>
+                <div className="ap-convocacao-detail__fields" style={{ marginTop: "0.75rem" }}>
+                  {(nextGame as any).competition ? (
+                    <div className="ap-convocacao-detail__field">
+                      <p className="ap-convocacao-detail__field-label">Competição</p>
+                      <p className="ap-convocacao-detail__field-value">{(nextGame as any).competition}</p>
+                    </div>
+                  ) : null}
+                  {weekday ? (
+                    <div className="ap-convocacao-detail__field">
+                      <p className="ap-convocacao-detail__field-label">Data</p>
+                      <p className="ap-convocacao-detail__field-value">{weekday}</p>
+                    </div>
+                  ) : null}
+                  {time ? (
+                    <div className="ap-convocacao-detail__field">
+                      <p className="ap-convocacao-detail__field-label">Horário</p>
+                      <p className="ap-convocacao-detail__field-value">{time}</p>
+                    </div>
+                  ) : null}
+                  {nextGame.location ? (
+                    <div className="ap-convocacao-detail__field">
+                      <p className="ap-convocacao-detail__field-label">Local</p>
+                      <p className="ap-convocacao-detail__field-value">{nextGame.location}</p>
+                    </div>
+                  ) : null}
+                </div>
+              </APCard>
+
+              {/* Ações */}
+              <div className="ap-convocacao-detail__actions">
+                <APButton tone="success" icon={<Check size={16} />} size="lg" fullWidth>
+                  Confirmar presença
+                </APButton>
+                <APButton tone="ghost" icon={<X size={16} />} size="lg" fullWidth>
+                  Não poderei comparecer
+                </APButton>
+              </div>
+
+              {/* Histórico */}
+              {recentGames.length > 0 ? (
+                <APCard>
+                  <APSectionTitle>Histórico de convocações</APSectionTitle>
+                  <div className="ap-convocacao-history" style={{ marginTop: "0.75rem" }}>
+                    {recentGames.slice(0, 5).map((game) => {
+                      const result = game.winnerSide == null ? "d" : game.winnerSide === game.side ? "w" : "l";
+                      const dateLabel = game.date
+                        ? new Date(game.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+                        : "-";
+                      return (
+                        <div key={game.gameId} className="ap-convocacao-history__row">
+                          <span className="ap-convocacao-history__date">{dateLabel}</span>
+                          <div className="ap-convocacao-history__game">
+                            <p className="ap-convocacao-history__teams">{game.redTeamName} x {game.whiteTeamName}</p>
+                            <p className="ap-convocacao-history__score">{game.location ?? "—"}</p>
+                          </div>
+                          <span
+                            className={`ap-convocacao-history__status ap-convocacao-history__status--${result === "w" || result === "d" ? "present" : "absent"}`}
+                          >
+                            {result === "w" ? "V" : result === "d" ? "E" : "D"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </APCard>
+              ) : null}
+            </div>
+          </div>
+          <APNav active="jogos" />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="ap-page">
-      <APTopbar name={name} photo={photo} action={<span className="ap-topbar__title">Jogos</span>} />
+    <div className="ap-root">
+      <APSidebar name={name} photo={photo} />
+      <div className="ap-page">
+        <APTopbar name={name} photo={photo} action={<span className="ap-topbar__title">Jogos</span>} />
 
-      <div className="ap-page-body">
-        <div className="ap-tabs">
-          <button type="button" className={`ap-tab ${tab === "proximos" ? "ap-tab--active" : ""}`} onClick={() => setTab("proximos")}>Próximos</button>
-          <button type="button" className={`ap-tab ${tab === "historico" ? "ap-tab--active" : ""}`} onClick={() => setTab("historico")}>Histórico</button>
-        </div>
+        <div className="ap-page-body">
+          <div className="ap-tabs">
+            <button type="button" className={`ap-tab ${tab === "proximos" ? "ap-tab--active" : ""}`} onClick={() => setTab("proximos")}>Próximos</button>
+            <button type="button" className={`ap-tab ${tab === "historico" ? "ap-tab--active" : ""}`} onClick={() => setTab("historico")}>Histórico</button>
+          </div>
 
-        {isLoading ? <div className="ap-loading">Carregando...</div> : null}
+          {isLoading ? <div className="ap-loading">Carregando...</div> : null}
 
-        {tab === "proximos" && !isLoading ? (
-          upcomingGames.length > 0 ? upcomingGames.map((game) => (
-            <APCard key={game.gameId} className="ap-convocacao-card">
-              <div className="ap-convocacao-card__header">
+          {tab === "proximos" && !isLoading ? (
+            nextGame ? (
+              <APCard
+                className="ap-convocacao-card"
+                style={{ cursor: "pointer" }}
+                onClick={() => setSelectedGame(nextGame.gameId)}
+              >
+                <p className="ap-next-game-card__label"><Trophy size={13} />Próxima convocação</p>
                 <div className="ap-convocacao-card__matchup">
                   <div className="ap-convocacao-card__team">
-                    <span className="ap-convocacao-card__team-name">{game.redTeamName}</span>
+                    <span className="ap-convocacao-card__team-name">{nextGame.redTeamName}</span>
                   </div>
                   <div className="ap-convocacao-card__center">
                     <span className="ap-convocacao-card__sep">X</span>
                     <div className="ap-convocacao-card__info">
-                      {game.date ? <span>{new Date(game.date).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}</span> : null}
-                      {game.location ? <span><MapPin size={12} />{game.location}</span> : null}
+                      {nextGame.date ? <span>{new Date(nextGame.date).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}</span> : null}
+                      {nextGame.location ? <span><MapPin size={12} />{nextGame.location}</span> : null}
                     </div>
                   </div>
                   <div className="ap-convocacao-card__team">
-                    <span className="ap-convocacao-card__team-name">{game.whiteTeamName}</span>
+                    <span className="ap-convocacao-card__team-name">{nextGame.whiteTeamName}</span>
                   </div>
                 </div>
+                <div className="ap-convocacao-card__actions">
+                  <APButton tone="success" icon={<Check size={15} />} fullWidth onClick={() => {}}>Confirmar presença</APButton>
+                  <APButton tone="ghost" icon={<X size={15} />} fullWidth onClick={() => {}}>Não vou jogar</APButton>
+                </div>
+              </APCard>
+            ) : (
+              <div className="ap-empty">
+                <Trophy size={36} />
+                <p>Nenhum jogo agendado por enquanto.</p>
               </div>
-              <div className="ap-convocacao-card__actions">
-                <APButton tone="success" icon={<Check size={15} />} fullWidth>Confirmar presença</APButton>
-                <APButton tone="ghost" icon={<X size={15} />} fullWidth>Não vou jogar</APButton>
-              </div>
-            </APCard>
-          )) : (
-            <div className="ap-empty">
-              <Trophy size={36} />
-              <p>Nenhum jogo agendado por enquanto.</p>
-            </div>
-          )
-        ) : null}
+            )
+          ) : null}
 
-        {tab === "historico" && !isLoading ? (
-          recentGames.length > 0 ? (
-            <APCard>
-              {recentGames.map((game) => {
-                const result = game.winnerSide == null ? "d" : game.winnerSide === game.side ? "w" : "l";
-                return (
-                  <div key={game.gameId} className="ap-game-row">
-                    <div className="ap-game-row__date">{game.date ? new Date(game.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "-"}</div>
-                    <div className="ap-game-row__teams">
-                      <span>{game.redTeamName}</span>
-                      <strong>{game.redScore ?? "-"} × {game.whiteScore ?? "-"}</strong>
-                      <span>{game.whiteTeamName}</span>
+          {tab === "historico" && !isLoading ? (
+            recentGames.length > 0 ? (
+              <APCard>
+                {recentGames.map((game) => {
+                  const result = game.winnerSide == null ? "d" : game.winnerSide === game.side ? "w" : "l";
+                  return (
+                    <div key={game.gameId} className="ap-game-row">
+                      <div className="ap-game-row__date">{game.date ? new Date(game.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : "-"}</div>
+                      <div className="ap-game-row__teams">
+                        <span>{game.redTeamName}</span>
+                        <strong>{game.redScore ?? "-"} × {game.whiteScore ?? "-"}</strong>
+                        <span>{game.whiteTeamName}</span>
+                      </div>
+                      <div className="ap-game-row__right">
+                        <span className={`ap-result-badge ap-result-badge--${result}`}>{result === "w" ? "V" : result === "d" ? "E" : "D"}</span>
+                      </div>
                     </div>
-                    <div className="ap-game-row__right">
-                      <span className={`ap-result-badge ap-result-badge--${result}`}>{result === "w" ? "V" : result === "d" ? "E" : "D"}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </APCard>
-          ) : (
-            <div className="ap-empty">
-              <Trophy size={36} />
-              <p>Nenhum jogo no histórico.</p>
-            </div>
-          )
-        ) : null}
+                  );
+                })}
+              </APCard>
+            ) : (
+              <div className="ap-empty">
+                <Trophy size={36} />
+                <p>Nenhum jogo no histórico.</p>
+              </div>
+            )
+          ) : null}
+        </div>
+        <APNav active="jogos" />
       </div>
-      <APNav active="jogos" />
     </div>
   );
 }
@@ -396,12 +609,14 @@ export function AthletePortalPerformancePage() {
   const gamesPlayed = overview?.numbers?.gamesPlayed ?? 0;
 
   return (
-    <div className="ap-page">
-      <APTopbar name={name} photo={photo} action={<span className="ap-topbar__title">Desempenho</span>} />
+    <div className="ap-root">
+      <APSidebar name={name} photo={photo} />
+      <div className="ap-page">
+        <APTopbar name={name} photo={photo} action={<span className="ap-topbar__title">Desempenho</span>} />
 
-      <div className="ap-page-body">
-        {/* Stats principais */}
-        <div className="ap-stats-row ap-stats-row--hero">
+        <div className="ap-page-body">
+          {/* Stats principais */}
+          <div className="ap-stats-row ap-stats-row--hero">
           <APStat label="Jogos" value={gamesPlayed} icon={<Trophy size={18} />} />
           <APStat label="Gols" value={overview?.numbers?.goals ?? 0} icon={<Target size={18} />} helper={`Média ${((overview?.numbers?.goals ?? 0) / Math.max(gamesPlayed, 1)).toFixed(2)} por jogo`} />
           <APStat label="Assistências" value={overview?.numbers?.assists ?? 0} icon={<Zap size={18} />} helper={`Média ${((overview?.numbers?.assists ?? 0) / Math.max(gamesPlayed, 1)).toFixed(2)} por jogo`} />
@@ -460,9 +675,10 @@ export function AthletePortalPerformancePage() {
               ) : null}
             </div>
           </APCard>
-        ) : null}
+          ) : null}
+        </div>
+        <APNav active="desempenho" />
       </div>
-      <APNav active="desempenho" />
     </div>
   );
 }
@@ -501,11 +717,13 @@ export function AthletePortalFinancePage() {
   const recentPayments = overview?.recentPayments ?? [];
 
   return (
-    <div className="ap-page">
-      <APTopbar name={name} photo={photo} action={<span className="ap-topbar__title">Financeiro</span>} />
+    <div className="ap-root">
+      <APSidebar name={name} photo={photo} />
+      <div className="ap-page">
+        <APTopbar name={name} photo={photo} action={<span className="ap-topbar__title">Financeiro</span>} />
 
-      <div className="ap-page-body">
-        {/* Resumo financeiro */}
+        <div className="ap-page-body">
+          {/* Resumo financeiro */}
         <div className="ap-finance-summary">
           <APCard className="ap-finance-summary__item ap-finance-summary__item--open">
             <p className="ap-finance-summary__label">Em aberto</p>
@@ -578,9 +796,10 @@ export function AthletePortalFinancePage() {
               </div>
             </div>
           )) : <p className="ap-empty-text">Nenhum pagamento encontrado.</p>}
-        </APCard>
+          </APCard>
+        </div>
+        <APNav active="financeiro" />
       </div>
-      <APNav active="financeiro" />
     </div>
   );
 }
@@ -606,8 +825,10 @@ export function AthletePortalHealthPage() {
   };
 
   return (
-    <div className="ap-page">
-      <APTopbar name={name} photo={photo} action={<span className="ap-topbar__title">Saúde</span>} />
+    <div className="ap-root">
+      <APSidebar name={name} photo={photo} />
+      <div className="ap-page">
+        <APTopbar name={name} photo={photo} action={<span className="ap-topbar__title">Saúde</span>} />
 
       <div className="ap-page-body">
         {/* Status de saúde */}
@@ -656,9 +877,10 @@ export function AthletePortalHealthPage() {
             <BookOpen size={28} />
             <p>Nenhum documento médico cadastrado.</p>
           </div>
-        </APCard>
+          </APCard>
+        </div>
+        <APNav active="saude" />
       </div>
-      <APNav active="saude" />
     </div>
   );
 }
@@ -674,7 +896,9 @@ export function AthletePortalCareerPage() {
   const careerData = (overview as any)?.career;
 
   return (
-    <div className="ap-page">
+    <div className="ap-root">
+      <APSidebar name={name} photo={photo} />
+      <div className="ap-page">
       <APTopbar name={name} photo={photo} action={<span className="ap-topbar__title">Minha Carreira</span>} />
 
       <div className="ap-page-body">
@@ -745,6 +969,7 @@ export function AthletePortalCareerPage() {
         </APCard>
       </div>
       <APNav active="jogos" />
+      </div>
     </div>
   );
 }
@@ -767,7 +992,9 @@ export function AthletePortalProfilePage() {
   };
 
   return (
-    <div className="ap-page">
+    <div className="ap-root">
+      <APSidebar name={name} photo={photo} />
+      <div className="ap-page">
       <APTopbar name={name} photo={photo} action={<span className="ap-topbar__title">Meu Perfil</span>} />
 
       <div className="ap-page-body">
@@ -866,6 +1093,7 @@ export function AthletePortalProfilePage() {
         </APCard>
       </div>
       <APNav active="perfil" />
+      </div>
     </div>
   );
 }
@@ -882,7 +1110,9 @@ export function AthletePortalAchievementsPage() {
   const careerData = (overview as any)?.career;
 
   return (
-    <div className="ap-page">
+    <div className="ap-root">
+      <APSidebar name={name} photo={photo} />
+      <div className="ap-page">
       <APTopbar name={name} photo={photo} action={<span className="ap-topbar__title">Conquistas</span>} />
 
       <div className="ap-page-body">
@@ -919,6 +1149,7 @@ export function AthletePortalAchievementsPage() {
         )}
       </div>
       <APNav active="jogos" />
+      </div>
     </div>
   );
 }
