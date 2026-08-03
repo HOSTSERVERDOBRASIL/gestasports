@@ -81,6 +81,7 @@ import {
 import CreateGamePage from "../pages/CreateGamePage";
 import { AthleteAccountPage } from "../pages/AthleteAccountPage";
 import { DynamicMemorialCategoryPage, PublicMemorialPage } from "../pages/ArchivePages";
+import { LiveFeedPage } from "../pages/LiveFeedPage";
 import {
   AthletePortalDashboardPage,
   AthletePortalGamesPage,
@@ -138,6 +139,7 @@ export function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/convite" element={<InvitePage />} />
       <Route path="/recuperar-senha" element={<RecoverPasswordPage />} />
+      <Route path="/live/:gameId" element={<LiveFeedPage />} />
       <Route path="/acervo" element={<PublicMemorialPage />} />
       <Route path="/acervo/categorias/:slug" element={<DynamicMemorialCategoryPage publicView />} />
       <Route path="/acervo/categorias/:slug/:id" element={<DynamicMemorialCategoryPage publicView />} />

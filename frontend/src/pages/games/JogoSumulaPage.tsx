@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowLeftRight, ClipboardList, Printer } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, ClipboardList, Printer, Share2 } from "lucide-react";
 import { apiRequest } from "../../services/api";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { SectionCard } from "../../components/ui/SectionCard";
@@ -36,6 +36,12 @@ export function JogoSumulaPage() {
     queryFn: () => apiRequest<Game>(`/sports/games/${id}`),
     enabled: Boolean(id),
     refetchInterval: (query) => query.state.data?.status === "RUNNING" ? 5000 : false
+  });
+
+  const photosQuery = useQuery({
+    queryKey: ["game-photos", id],
+    queryFn: () => apiRequest<Array<{ id: string; url: string; title?: string | null }>>(`/gallery/assets?type=GAME&gameId=${id}`),
+    enabled: Boolean(id)
   });
 
   const [displaySeconds, setDisplaySeconds] = useState(0);
@@ -121,6 +127,16 @@ export function JogoSumulaPage() {
             >
               <ArrowLeft size={14} /> Voltar ao jogo
             </Link>
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/live/${id}`;
+                if (navigator.share) { void navigator.share({ title: "Acompanhe ao vivo!", url }); }
+                else { void navigator.clipboard.writeText(url); }
+              }}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 hover:bg-slate-50"
+            >
+              <Share2 size={14} /> Link ao vivo
+            </button>
             <a
               href={`/api/sports/games/${id}/sumula-print`}
               target="_blank"
@@ -260,6 +276,25 @@ export function JogoSumulaPage() {
               Modo súmula completo →
             </Link>
           </div>
+
+          {(photosQuery.data?.length ?? 0) > 0 && (
+            <section className="mt-6">
+              <h2 className="mb-3 text-sm font-black uppercase tracking-[0.08em] text-slate-500">Fotos do jogo</h2>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {photosQuery.data!.map((photo) => (
+                  <a key={photo.id} href={photo.url} target="_blank" rel="noopener noreferrer"
+                    className="group relative overflow-hidden rounded-xl aspect-square bg-slate-100">
+                    <img src={photo.url} alt={photo.title ?? "Foto"} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                    {photo.title && (
+                      <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent px-2 py-1.5">
+                        <p className="truncate text-xs font-bold text-white">{photo.title}</p>
+                      </div>
+                    )}
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>

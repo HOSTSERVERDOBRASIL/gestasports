@@ -986,6 +986,55 @@ ${game.refereeName ? `<div class="referees">Árbitro: ${game.refereeName}${game.
     return reply.header("Content-Type", "text/html; charset=utf-8").send(html);
   });
 
+  // Feed público de jogo — sem autenticação
+  app.get("/public/games/:id/live", async (request, reply) => {
+    const { id } = z.object({ id: z.string() }).parse(request.params);
+
+    const game = await prisma.game.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        date: true,
+        location: true,
+        status: true,
+        redScore: true,
+        whiteScore: true,
+        elapsedSeconds: true,
+        startedAt: true,
+        pausedAt: true,
+        halfDurationMinutes: true,
+        redTeamName: true,
+        whiteTeamName: true,
+        homeClub: { select: { name: true, shortName: true, logoUrl: true } },
+        awayClub: { select: { name: true, shortName: true, logoUrl: true } },
+        tenant: { select: { brandName: true, primaryColor: true, logoUrl: true } },
+        events: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true, type: true, minute: true, side: true,
+            athlete: { select: { name: true } }
+          }
+        },
+        substitutions: {
+          orderBy: { minute: "asc" },
+          select: {
+            id: true, minute: true, side: true,
+            athleteIn: { select: { name: true } },
+            athleteOut: { select: { name: true } }
+          }
+        }
+      }
+    });
+
+    if (!game) return reply.status(404).send({ message: "Jogo não encontrado." });
+
+    // CORS para essa rota específica
+    reply.header("Access-Control-Allow-Origin", "*");
+    reply.header("Cache-Control", "no-cache, no-store, must-revalidate");
+
+    return game;
+  });
+
   // Evolution 6 — Convocar atletas com notificação
   app.post("/sports/games/:id/callups", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
     const params = gameIdParamsSchema.parse(request.params);

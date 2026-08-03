@@ -440,9 +440,16 @@ export function AthletePortalGamesPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["athlete-overview"] })
   });
 
+  const gamePhotos = useQuery({
+    queryKey: ["game-photos-portal", selectedGame],
+    queryFn: () => apiRequest<Array<{ id: string; url: string; title?: string | null }>>(`/gallery/assets?type=GAME&gameId=${selectedGame}`),
+    enabled: Boolean(selectedGame)
+  });
+
   const nextGame = overview?.nextGame;
   const recentGames = overview?.recentGames ?? [];
   const showConvocacao = selectedGame && nextGame && selectedGame === nextGame.gameId;
+  const showHistoricDetail = selectedGame && (!nextGame || selectedGame !== nextGame.gameId);
 
   if (showConvocacao && nextGame) {
     const weekday = nextGame.date
@@ -560,6 +567,70 @@ export function AthletePortalGamesPage() {
                 </APCard>
               ) : null}
             </div>
+          </div>
+          <APNav active="jogos" />
+        </div>
+      </div>
+    );
+  }
+
+  if (showHistoricDetail) {
+    const historic = recentGames.find((g) => g.gameId === selectedGame);
+    const photos = gamePhotos.data ?? [];
+    return (
+      <div className="ap-root">
+        <APSidebar name={name} photo={photo} />
+        <div className="ap-page">
+          <APTopbar
+            name={name}
+            photo={photo}
+            onBack={() => setSelectedGame(null)}
+            action={<span className="ap-topbar__title">Jogo</span>}
+          />
+          <div className="ap-page-body">
+            {historic ? (
+              <>
+                <APCard>
+                  <div className="ap-convocacao-detail__matchup" style={{ marginBottom: "0.75rem" }}>
+                    <div className="ap-convocacao-detail__team">
+                      <span className="ap-convocacao-detail__team-name">{historic.redTeamName ?? "Time A"}</span>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <span style={{ fontSize: "1.75rem", fontWeight: 900, color: "#0f172a" }}>
+                        {historic.redScore ?? 0} x {historic.whiteScore ?? 0}
+                      </span>
+                      <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: "2px" }}>
+                        {historic.date ? new Date(historic.date).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" }) : ""}
+                      </p>
+                    </div>
+                    <div className="ap-convocacao-detail__team">
+                      <span className="ap-convocacao-detail__team-name">{historic.whiteTeamName ?? "Time B"}</span>
+                    </div>
+                  </div>
+                  {historic.location ? (
+                    <p style={{ fontSize: "0.8125rem", color: "#64748b", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <MapPin size={13} /> {historic.location}
+                    </p>
+                  ) : null}
+                </APCard>
+
+                {photos.length > 0 && (
+                  <APCard style={{ marginTop: "1rem" }}>
+                    <APSectionTitle>Fotos do jogo</APSectionTitle>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "0.75rem" }}>
+                      {photos.map((photo) => (
+                        <a key={photo.id} href={photo.url} target="_blank" rel="noopener noreferrer"
+                          style={{ display: "block", aspectRatio: "1", overflow: "hidden", borderRadius: "0.625rem", background: "#f1f5f9" }}>
+                          <img src={photo.url} alt={photo.title ?? "Foto"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        </a>
+                      ))}
+                    </div>
+                  </APCard>
+                )}
+              </>
+            ) : (
+              <APCard><p className="ap-empty">Jogo não encontrado.</p></APCard>
+            )}
           </div>
           <APNav active="jogos" />
         </div>
