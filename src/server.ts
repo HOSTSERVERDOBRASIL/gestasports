@@ -25,6 +25,8 @@ import { auditRoutes } from "./modules/audit/audit.routes.js";
 import { superadminRoutes } from "./modules/superadmin/superadmin.routes.js";
 import { tenantPlugin } from "./modules/tenancy/tenant.plugin.js";
 import { tenantRoutes } from "./modules/tenancy/tenant.routes.js";
+import { pushRoutes } from "./modules/push/push.routes.js";
+import { announcementRoutes } from "./modules/announcements/announcements.routes.js";
 import { prisma } from "./lib/prisma.js";
 
 const app = Fastify({ logger: env.NODE_ENV !== "production", bodyLimit: 6 * 1024 * 1024 });
@@ -115,6 +117,8 @@ await app.register(async (api) => {
   await api.register(archiveRoutes, { prefix: "/api" });
   await api.register(auditRoutes, { prefix: "/api" });
   await api.register(superadminRoutes, { prefix: "/api" });
+  await api.register(pushRoutes, { prefix: "/api" });
+  await api.register(announcementRoutes, { prefix: "/api" });
 });
 
 app.setErrorHandler((error, _request, reply) => {

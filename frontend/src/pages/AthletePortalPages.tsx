@@ -62,16 +62,24 @@ function useWebPush() {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
     navigator.serviceWorker.register("/sw.js").then(async (reg) => {
+      // Buscar chave pública do servidor
+      let publicKey: string;
+      try {
+        const res = await fetch("/api/push/vapid-public-key");
+        if (!res.ok) return; // push não configurado
+        const data = await res.json() as { publicKey: string };
+        publicKey = data.publicKey;
+      } catch {
+        return;
+      }
+
       const existing = await reg.pushManager.getSubscription();
-      if (existing) return; // já inscrito
+      if (existing) return;
 
       try {
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(
-            // VAPID public key — será substituída pelo env
-            "BEl62iUYgUivxIkv69yViEuiBIa40Qd9lNsqvkZOODCHIRIUL3ohFKx1sBvqhNdV3pJHMm_mB5Z3mvvxbfAzlA"
-          )
+          applicationServerKey: urlBase64ToUint8Array(publicKey)
         });
         const json = sub.toJSON();
         if (!json.keys) return;
@@ -158,6 +166,7 @@ const AP_NAV_ITEMS = [
   { id: "desempenho", label: "Desempenho", icon: <Activity size={18} />, path: "/atleta/desempenho" },
   { id: "financeiro", label: "Financeiro", icon: <Coins size={18} />, path: "/atleta/financeiro" },
   { id: "comunicados", label: "Comunicados", icon: <MessageCircle size={18} />, path: "/atleta/comunicados" },
+  { id: "ranking", label: "Ranking", icon: <Trophy size={18} />, path: "/atleta/ranking" },
   { id: "saude", label: "Saúde", icon: <Heart size={18} />, path: "/atleta/saude" },
   { id: "perfil", label: "Perfil", icon: <UserRound size={18} />, path: "/atleta/perfil" },
 ];
@@ -1415,6 +1424,161 @@ export function AthletePortalAchievementsPage() {
       </div>
       <APNav active="jogos" />
       </div>
+    </div>
+  );
+}
+
+// ── Page: Ranking ────────────────────────────
+type RankingData = {
+  season: number;
+  scorers: Array<{ athlete: { id: string; name: string; position: string | null; photoUrl: string | null }; goals: number }>;
+  assists: Array<{ athlete: { id: string; name: string; position: string | null; photoUrl: string | null }; assists: number }>;
+  presence: Array<{ athlete: { id: string; name: string; position: string | null; photoUrl: string | null }; games: number }>;
+  ratings: Array<{ athlete: { id: string; name: string; position: string | null; photoUrl: string | null }; score: number; classification: string }>;
+};
+
+export function AthletePortalRankingPage() {
+  const overview = useQuery({ queryKey: ["athlete-overview"], queryFn: () => apiRequest<AthleteSelfOverview>("/athletes/me/overview") });
+  const ranking = useQuery({
+    queryKey: ["athlete-ranking"],
+    queryFn: () => apiRequest<RankingData>("/athletes/ranking?limit=10")
+  });
+
+  const name = overview.data?.athlete?.name ?? "Atleta";
+  const photo = (overview.data?.athlete as any)?.photoUrl ?? null;
+  const data = ranking.data;
+
+  const [tab, setTab] = useState<"scorers" | "assists" | "presence" | "ratings">("scorers");
+
+  const TABS = [
+    { id: "scorers" as const, label: "Artilheiros", icon: "⚽" },
+    { id: "assists" as const, label: "Assistências", icon: "🅰️" },
+    { id: "presence" as const, label: "Presença", icon: "📅" },
+    { id: "ratings" as const, label: "Rating", icon: "⭐" },
+  ];
+
+  function medalColor(i: number) {
+    if (i === 0) return "#f59e0b"; // ouro
+    if (i === 1) return "#94a3b8"; // prata
+    if (i === 2) return "#b45309"; // bronze
+    return undefined;
+  }
+
+  return (
+    <div className="ap-root">
+      <APSidebar name={name} photo={photo} />
+      <main className="ap-content">
+        <APTopbar name={name} photo={photo} />
+        <div className="ap-page">
+          <APSectionTitle>Ranking {data?.season ?? new Date().getFullYear()}</APSectionTitle>
+
+          <div className="ap-tabs" style={{ marginBottom: "1rem" }}>
+            {TABS.map(t => (
+              <button key={t.id} type="button"
+                className={`ap-tab ${tab === t.id ? "ap-tab--active" : ""}`}
+                onClick={() => setTab(t.id)}>
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+
+          {ranking.isLoading && <p className="ap-empty">Carregando ranking...</p>}
+
+          {!ranking.isLoading && (
+            <div className="ap-stack">
+              {tab === "scorers" && (data?.scorers.length ?? 0) === 0 && (
+                <p className="ap-empty">Nenhum gol registrado esta temporada.</p>
+              )}
+              {tab === "scorers" && (data?.scorers ?? []).map((entry, i) => (
+                <APCard key={entry.athlete.id}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                    <div style={{
+                      width: "2rem", height: "2rem", borderRadius: "50%",
+                      background: medalColor(i) ?? "#f1f5f9",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "0.875rem", fontWeight: 900,
+                      color: medalColor(i) ? "#fff" : "#64748b", flexShrink: 0
+                    }}>
+                      {i + 1}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 800, fontSize: "0.9375rem", color: "#0f172a", margin: 0 }}>{entry.athlete.name}</p>
+                      <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: "2px 0 0" }}>{entry.athlete.position ?? "—"}</p>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <strong style={{ fontSize: "1.5rem", fontWeight: 900, color: "#dc2626", lineHeight: 1 }}>{entry.goals}</strong>
+                      <p style={{ fontSize: "0.7rem", color: "#94a3b8", margin: 0 }}>gols</p>
+                    </div>
+                  </div>
+                </APCard>
+              ))}
+
+              {tab === "assists" && (data?.assists.length ?? 0) === 0 && (
+                <p className="ap-empty">Nenhuma assistência registrada esta temporada.</p>
+              )}
+              {tab === "assists" && (data?.assists ?? []).map((entry, i) => (
+                <APCard key={entry.athlete.id}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                    <div style={{ width: "2rem", height: "2rem", borderRadius: "50%", background: medalColor(i) ?? "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem", fontWeight: 900, color: medalColor(i) ? "#fff" : "#64748b", flexShrink: 0 }}>
+                      {i + 1}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 800, fontSize: "0.9375rem", color: "#0f172a", margin: 0 }}>{entry.athlete.name}</p>
+                      <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: "2px 0 0" }}>{entry.athlete.position ?? "—"}</p>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <strong style={{ fontSize: "1.5rem", fontWeight: 900, color: "#3b82f6", lineHeight: 1 }}>{entry.assists}</strong>
+                      <p style={{ fontSize: "0.7rem", color: "#94a3b8", margin: 0 }}>assist.</p>
+                    </div>
+                  </div>
+                </APCard>
+              ))}
+
+              {tab === "presence" && (data?.presence.length ?? 0) === 0 && (
+                <p className="ap-empty">Nenhuma presença registrada esta temporada.</p>
+              )}
+              {tab === "presence" && (data?.presence ?? []).map((entry, i) => (
+                <APCard key={entry.athlete.id}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                    <div style={{ width: "2rem", height: "2rem", borderRadius: "50%", background: medalColor(i) ?? "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem", fontWeight: 900, color: medalColor(i) ? "#fff" : "#64748b", flexShrink: 0 }}>
+                      {i + 1}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 800, fontSize: "0.9375rem", color: "#0f172a", margin: 0 }}>{entry.athlete.name}</p>
+                      <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: "2px 0 0" }}>{entry.athlete.position ?? "—"}</p>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <strong style={{ fontSize: "1.5rem", fontWeight: 900, color: "#10b981", lineHeight: 1 }}>{entry.games}</strong>
+                      <p style={{ fontSize: "0.7rem", color: "#94a3b8", margin: 0 }}>jogos</p>
+                    </div>
+                  </div>
+                </APCard>
+              ))}
+
+              {tab === "ratings" && (data?.ratings.length ?? 0) === 0 && (
+                <p className="ap-empty">Nenhuma avaliação registrada esta temporada.</p>
+              )}
+              {tab === "ratings" && (data?.ratings ?? []).map((entry, i) => (
+                <APCard key={entry.athlete.id}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                    <div style={{ width: "2rem", height: "2rem", borderRadius: "50%", background: medalColor(i) ?? "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem", fontWeight: 900, color: medalColor(i) ? "#fff" : "#64748b", flexShrink: 0 }}>
+                      {i + 1}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 800, fontSize: "0.9375rem", color: "#0f172a", margin: 0 }}>{entry.athlete.name}</p>
+                      <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: "2px 0 0" }}>{entry.classification}</p>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <strong style={{ fontSize: "1.5rem", fontWeight: 900, color: "#f59e0b", lineHeight: 1 }}>{entry.score.toFixed(1)}</strong>
+                      <p style={{ fontSize: "0.7rem", color: "#94a3b8", margin: 0 }}>pts</p>
+                    </div>
+                  </div>
+                </APCard>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

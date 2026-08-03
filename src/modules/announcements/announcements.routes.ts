@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
+import { sendPushToTenant } from "../push/push.service.js";
 
 const createSchema = z.object({
   title: z.string().min(2).max(120),
@@ -38,6 +39,12 @@ export async function announcementRoutes(app: FastifyInstance) {
         tenantId: request.user.tenantId!,
         authorId: request.user.sub
       }
+    });
+    void sendPushToTenant(item.tenantId, {
+      title: `📢 ${item.title}`,
+      body: item.body.slice(0, 100),
+      url: "/atleta/comunicados",
+      tag: `announcement-${item.id}`
     });
     return reply.status(201).send(item);
   });

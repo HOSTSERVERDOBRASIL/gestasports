@@ -2335,6 +2335,95 @@ export async function athleteRoutes(app: FastifyInstance) {
       }))
       .reverse();
   });
+
+  app.get("/athletes/ranking", { preHandler: app.authenticate }, async (request) => {
+    const parsed = z.object({
+      season: z.string().default(String(new Date().getFullYear())),
+      limit: z.coerce.number().int().min(1).max(50).default(20)
+    }).parse(request.query);
+
+    const year = parseInt(parsed.season, 10);
+    const limitN = parsed.limit;
+
+    // 1. Artilheiros — contar GOAL events em jogos FINISHED do ano
+    const goalsRaw = await prisma.gameEvent.groupBy({
+      by: ["athleteId"],
+      where: {
+        type: EventType.GOAL,
+        game: { status: "FINISHED", date: { gte: new Date(`${year}-01-01`), lte: new Date(`${year}-12-31`) } }
+      },
+      _count: { athleteId: true },
+      orderBy: { _count: { athleteId: "desc" } },
+      take: limitN
+    });
+
+    const assistsRaw = await prisma.gameEvent.groupBy({
+      by: ["athleteId"],
+      where: {
+        type: EventType.ASSIST,
+        game: { status: "FINISHED", date: { gte: new Date(`${year}-01-01`), lte: new Date(`${year}-12-31`) } }
+      },
+      _count: { athleteId: true },
+      orderBy: { _count: { athleteId: "desc" } },
+      take: limitN
+    });
+
+    // 2. Mais presentes — contar GameLineup com presence=true
+    const presenceRaw = await prisma.gameLineup.groupBy({
+      by: ["athleteId"],
+      where: {
+        presence: true,
+        game: { status: "FINISHED", date: { gte: new Date(`${year}-01-01`), lte: new Date(`${year}-12-31`) } }
+      },
+      _count: { athleteId: true },
+      orderBy: { _count: { athleteId: "desc" } },
+      take: limitN
+    });
+
+    // 3. Melhor avaliados — última avaliação técnica do ano
+    const ratingsRaw = await prisma.athleteTechnicalEvaluation.findMany({
+      where: { year },
+      orderBy: { finalScore: "desc" },
+      take: limitN,
+      select: { athleteId: true, finalScore: true, classification: true }
+    });
+
+    // Buscar nomes dos atletas para todos os IDs encontrados
+    const allIds = [...new Set([
+      ...goalsRaw.map(r => r.athleteId),
+      ...assistsRaw.map(r => r.athleteId),
+      ...presenceRaw.map(r => r.athleteId),
+      ...ratingsRaw.map(r => r.athleteId)
+    ])];
+
+    const athletes = await prisma.athlete.findMany({
+      where: { id: { in: allIds } },
+      select: { id: true, name: true, position: true, photoUrl: true }
+    });
+
+    const athleteMap = new Map(athletes.map(a => [a.id, a]));
+
+    return {
+      season: year,
+      scorers: goalsRaw.map(r => ({
+        athlete: athleteMap.get(r.athleteId) ?? { id: r.athleteId, name: "Atleta", position: null, photoUrl: null },
+        goals: r._count.athleteId
+      })),
+      assists: assistsRaw.map(r => ({
+        athlete: athleteMap.get(r.athleteId) ?? { id: r.athleteId, name: "Atleta", position: null, photoUrl: null },
+        assists: r._count.athleteId
+      })),
+      presence: presenceRaw.map(r => ({
+        athlete: athleteMap.get(r.athleteId) ?? { id: r.athleteId, name: "Atleta", position: null, photoUrl: null },
+        games: r._count.athleteId
+      })),
+      ratings: ratingsRaw.map(r => ({
+        athlete: athleteMap.get(r.athleteId) ?? { id: r.athleteId, name: "Atleta", position: null, photoUrl: null },
+        score: r.finalScore,
+        classification: r.classification
+      }))
+    };
+  });
 }
 
 

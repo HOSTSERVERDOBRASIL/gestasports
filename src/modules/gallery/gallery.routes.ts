@@ -86,4 +86,41 @@ export async function galleryRoutes(app: FastifyInstance) {
     await prisma.mediaAsset.delete({ where: { id } });
     return reply.code(204).send();
   });
+
+  // Upload via base64 (sem storage externo)
+  const uploadSchema = z.object({
+    type: z.nativeEnum(MediaType).default("GENERAL"),
+    title: z.string().min(1).max(120).optional(),
+    gameId: z.string().cuid().optional(),
+    athleteId: z.string().cuid().optional(),
+    dataUrl: z.string().min(10) // base64 data URL
+  });
+
+  app.post("/gallery/upload", { preHandler: app.authorize(["ADMIN", "SPORTS_DIRECTOR", "FINANCIAL"]) }, async (request, reply) => {
+    const payload = uploadSchema.parse(request.body);
+
+    // Validar que é um data URL de imagem
+    if (!payload.dataUrl.startsWith("data:image/")) {
+      return reply.status(400).send({ message: "Apenas imagens são aceitas." });
+    }
+
+    // Limitar tamanho (~1MB em base64 ≈ 750KB real)
+    if (payload.dataUrl.length > 1_400_000) {
+      return reply.status(413).send({ message: "Imagem muito grande. Máximo 1MB." });
+    }
+
+    const created = await prisma.mediaAsset.create({
+      data: {
+        type: payload.type,
+        url: payload.dataUrl, // armazena base64 diretamente
+        title: payload.title || null,
+        year: new Date().getFullYear(),
+        gameId: payload.gameId || null,
+        athleteId: payload.athleteId || null,
+        uploadedById: request.user.sub
+      }
+    });
+
+    return reply.code(201).send(created);
+  });
 }

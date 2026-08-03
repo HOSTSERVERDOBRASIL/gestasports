@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowLeftRight, ClipboardList, Printer, Share2 } from "lucide-react";
 import { apiRequest } from "../../services/api";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { SectionCard } from "../../components/ui/SectionCard";
+import { PhotoUploadButton } from "../../components/ui/PhotoUploadButton";
 import type { Game, GameEventType } from "../../types/domain";
 import { formatDate } from "./gameLogic";
 
@@ -30,6 +31,7 @@ const eventTypeColor: Record<GameEventType, string> = {
 
 export function JogoSumulaPage() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
 
   const gameQuery = useQuery({
     queryKey: ["game", id],
@@ -279,7 +281,15 @@ export function JogoSumulaPage() {
 
           {(photosQuery.data?.length ?? 0) > 0 && (
             <section className="mt-6">
-              <h2 className="mb-3 text-sm font-black uppercase tracking-[0.08em] text-slate-500">Fotos do jogo</h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-black uppercase tracking-[0.08em] text-slate-500">Fotos do jogo</h2>
+                <PhotoUploadButton
+                  gameId={id}
+                  compact
+                  label="Adicionar foto"
+                  onUploaded={() => void queryClient.invalidateQueries({ queryKey: ["game-photos", id] })}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {photosQuery.data!.map((photo) => (
                   <a key={photo.id} href={photo.url} target="_blank" rel="noopener noreferrer"

@@ -19,6 +19,7 @@ import {
 } from "./sports.service.js";
 import { prisma } from "../../lib/prisma.js";
 import { env } from "../../config/env.js";
+import { sendPushToUser } from "../push/push.service.js";
 
 const flexibleIdSchema = z.union([z.string().cuid(), z.string().uuid()]);
 const formationValues = [
@@ -1102,6 +1103,24 @@ ${game.refereeName ? `<div class="referees">Árbitro: ${game.refereeName}${game.
           });
           if (result.success) notified = true;
         }
+      }
+
+      // Push notification para o atleta
+      try {
+        const athleteUser = await prisma.user.findFirst({
+          where: { associate: { athlete: { id: athleteId } } },
+          select: { id: true }
+        });
+        if (athleteUser) {
+          await sendPushToUser(athleteUser.id, {
+            title: "Você foi convocado! ⚽",
+            body: `Jogo em ${game.date ? new Date(game.date).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" }) : "breve"}. Confirme sua presença.`,
+            url: "/atleta/jogos",
+            tag: `callup-${game.id}`
+          });
+        }
+      } catch {
+        // silencia — push é best-effort
       }
 
       results.push({ athleteId, callupId: callup.id, notified });

@@ -24,7 +24,10 @@ const envSchema = z.object({
   SICOOB_CERT_PFX_PATH: z.string().optional(),
   SICOOB_CERT_PATH: z.string().optional(),
   SICOOB_KEY_PATH: z.string().optional(),
-  SICOOB_CERT_PASSPHRASE: z.string().optional()
+  SICOOB_CERT_PASSPHRASE: z.string().optional(),
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default("mailto:admin@gestasports.com.br")
 }).superRefine((env, ctx) => {
   if (env.NODE_ENV === "production" && (!env.JWT_SECRET || env.JWT_SECRET === "dev-super-secret-change-in-production")) {
     ctx.addIssue({

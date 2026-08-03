@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
+import { env } from "../../config/env.js";
 
 const subscribeSchema = z.object({
   endpoint: z.string().url(),
@@ -9,6 +10,12 @@ const subscribeSchema = z.object({
 });
 
 export async function pushRoutes(app: FastifyInstance) {
+  // Retornar VAPID public key (sem autenticação)
+  app.get("/push/vapid-public-key", async (_request, reply) => {
+    if (!env.VAPID_PUBLIC_KEY) return reply.status(503).send({ message: "Push não configurado." });
+    return { publicKey: env.VAPID_PUBLIC_KEY };
+  });
+
   // Salvar subscription do browser
   app.post("/push/subscribe", { preHandler: app.authenticate }, async (request, reply) => {
     const data = subscribeSchema.parse(request.body);
