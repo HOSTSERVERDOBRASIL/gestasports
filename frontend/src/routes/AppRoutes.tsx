@@ -89,7 +89,8 @@ import {
   AthletePortalHealthPage,
   AthletePortalCareerPage,
   AthletePortalProfilePage,
-  AthletePortalAchievementsPage
+  AthletePortalAchievementsPage,
+  AthletePortalAnnouncementsPage
 } from "../pages/AthletePortalPages";
 import {
   AssociatePortalDashboardPage,
@@ -264,6 +265,7 @@ export function AppRoutes() {
       <Route path="atleta/carreira" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalCareerPage /></RequireRoles>} />
       <Route path="atleta/conquistas" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalAchievementsPage /></RequireRoles>} />
       <Route path="atleta/perfil" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalProfilePage /></RequireRoles>} />
+      <Route path="atleta/comunicados" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalAnnouncementsPage /></RequireRoles>} />
 
       <Route path="associado" element={<RequireRoles roles={["ASSOCIATE"]}><AssociatePortalDashboardPage /></RequireRoles>} />
       <Route path="associado/mensalidades" element={<RequireRoles roles={["ASSOCIATE"]}><AssociatePortalMensalidadesPage /></RequireRoles>} />

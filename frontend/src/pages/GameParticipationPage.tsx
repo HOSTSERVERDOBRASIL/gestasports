@@ -193,6 +193,23 @@ function escapePrintText(value: string | number | null | undefined) {
     .replace(/"/g, "&quot;");
 }
 
+const QUICK_ACTIONS: Array<{ type: GameEventType; label: string; icon: string; color: string }> = [
+  { type: "GOAL", label: "Gol", icon: "⚽", color: "bg-emerald-500 hover:bg-emerald-600" },
+  { type: "YELLOW_CARD", label: "Amarelo", icon: "🟨", color: "bg-amber-400 hover:bg-amber-500" },
+  { type: "RED_CARD", label: "Vermelho", icon: "🟥", color: "bg-red-500 hover:bg-red-600" },
+  { type: "ASSIST", label: "Assistência", icon: "🔄", color: "bg-blue-500 hover:bg-blue-600" },
+];
+
+const quickActionLabel: Record<GameEventType, string> = {
+  GOAL: "Gol registrado!",
+  ASSIST: "Assistência registrada!",
+  YELLOW_CARD: "Cartão amarelo registrado!",
+  RED_CARD: "Cartão vermelho registrado!",
+  PENALTY_SCORED: "Pênalti registrado!",
+  PENALTY_MISSED: "Pênalti perdido registrado!",
+  OWN_GOAL: "Gol contra registrado!"
+};
+
 type ParticipacaoPageRealProps = {
   embedded?: boolean;
   initialGameId?: string | null;
@@ -203,6 +220,7 @@ export function ParticipacaoPageReal({ embedded = false, initialGameId = null, s
   const { year } = useOutletContext<OutletPeriod>();
   const queryClient = useQueryClient();
   const [selectedGameId, setSelectedGameId] = useState(initialGameId ?? "");
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [eventForm, setEventForm] = useState({
     athleteId: "",
     type: "GOAL" as GameEventType,
@@ -220,6 +238,11 @@ export function ParticipacaoPageReal({ embedded = false, initialGameId = null, s
     breakDurationMinutes: "15"
   });
   const [clockTick, setClockTick] = useState(0);
+
+  function showToast(msg: string, type: "success" | "error" = "success") {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 2500);
+  }
 
   const gamesQuery = useQuery({
     queryKey: ["sports-games", year, "participation"],
@@ -433,6 +456,7 @@ export function ParticipacaoPageReal({ embedded = false, initialGameId = null, s
         })
       }) : Promise.reject(new Error("Selecione um jogo.")),
     onSuccess: () => {
+      showToast(quickActionLabel[eventForm.type] ?? "Evento registrado!");
       setEventForm((current) => ({ ...current, athleteId: "", minute: "", note: "" }));
       invalidateGames();
     }
@@ -451,6 +475,7 @@ export function ParticipacaoPageReal({ embedded = false, initialGameId = null, s
         })
       }) : Promise.reject(new Error("Selecione um jogo.")),
     onSuccess: () => {
+      showToast("Substituição registrada!");
       setSubstitutionForm({ athleteOutId: "", athleteInId: "", minute: "", note: "" });
       void invalidateLineupQueries(queryClient);
       invalidateGames();
@@ -618,6 +643,11 @@ export function ParticipacaoPageReal({ embedded = false, initialGameId = null, s
 
   return (
     <section className={embedded ? "min-w-0 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5" : "min-w-0 space-y-4"}>
+      {toast && (
+        <div className={`fixed right-4 top-4 z-50 flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black text-white shadow-xl transition-all ${toast.type === "success" ? "bg-emerald-500" : "bg-red-500"}`}>
+          {toast.type === "success" ? "✓" : "✗"} {toast.msg}
+        </div>
+      )}
       {!embedded ? <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Participação e súmula</h1>
@@ -893,6 +923,21 @@ export function ParticipacaoPageReal({ embedded = false, initialGameId = null, s
 
             <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
               <h2 className="text-xl font-bold text-slate-950">Lançamentos da súmula</h2>
+              {/* Barra de ação rápida — seleciona o tipo de evento com botões grandes (mobile-first) */}
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                {QUICK_ACTIONS.map((action) => (
+                  <button
+                    key={action.type}
+                    type="button"
+                    onClick={() => setEventForm((current) => ({ ...current, type: action.type }))}
+                    className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-xs font-black text-white transition-colors ${action.color} ${eventForm.type === action.type ? "ring-2 ring-offset-1 ring-white" : ""}`}
+                    title={action.label}
+                  >
+                    <span className="text-xl leading-none">{action.icon}</span>
+                    <span>{action.label}</span>
+                  </button>
+                ))}
+              </div>
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 <form className="rounded-lg border border-slate-200 p-3" onSubmit={handleEventSubmit}>
                   <p className="mb-3 flex items-center gap-2 text-sm font-black uppercase text-slate-600">

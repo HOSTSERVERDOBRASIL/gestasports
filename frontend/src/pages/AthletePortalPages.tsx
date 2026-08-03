@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import {
@@ -47,6 +47,43 @@ function fmtDate(v: string) {
 
 function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+}
+
+// ── Web Push ─────────────────────────────────
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
+function useWebPush() {
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+
+    navigator.serviceWorker.register("/sw.js").then(async (reg) => {
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) return; // já inscrito
+
+      try {
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(
+            // VAPID public key — será substituída pelo env
+            "BEl62iUYgUivxIkv69yViEuiBIa40Qd9lNsqvkZOODCHIRIUL3ohFKx1sBvqhNdV3pJHMm_mB5Z3mvvxbfAzlA"
+          )
+        });
+        const json = sub.toJSON();
+        if (!json.keys) return;
+        await apiRequest("/push/subscribe", {
+          method: "POST",
+          body: JSON.stringify({ endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth })
+        });
+      } catch {
+        // permissão negada — silencia
+      }
+    }).catch(() => {});
+  }, []);
 }
 
 // ── Micro components ─────────────────────────
@@ -120,6 +157,7 @@ const AP_NAV_ITEMS = [
   { id: "jogos", label: "Jogos", icon: <Trophy size={18} />, path: "/atleta/jogos" },
   { id: "desempenho", label: "Desempenho", icon: <Activity size={18} />, path: "/atleta/desempenho" },
   { id: "financeiro", label: "Financeiro", icon: <Coins size={18} />, path: "/atleta/financeiro" },
+  { id: "comunicados", label: "Comunicados", icon: <MessageCircle size={18} />, path: "/atleta/comunicados" },
   { id: "saude", label: "Saúde", icon: <Heart size={18} />, path: "/atleta/saude" },
   { id: "perfil", label: "Perfil", icon: <UserRound size={18} />, path: "/atleta/perfil" },
 ];
@@ -220,6 +258,7 @@ function useAthleteOverview() {
 
 // ── Page: Dashboard ──────────────────────────
 export function AthletePortalDashboardPage() {
+  useWebPush();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: overview, isLoading } = useAthleteOverview();
@@ -620,6 +659,50 @@ export function AthletePortalGamesPage() {
   );
 }
 
+// ── Page: Comunicados ────────────────────────
+export function AthletePortalAnnouncementsPage() {
+  const overview = useQuery({ queryKey: ["athlete-overview"], queryFn: () => apiRequest<AthleteSelfOverview>("/athletes/me/overview") });
+  const announcements = useQuery({
+    queryKey: ["announcements"],
+    queryFn: () => apiRequest<Array<{ id: string; title: string; body: string; pinned: boolean; publishedAt: string; author?: { name: string } | null }>>("/announcements")
+  });
+
+  const name = overview.data?.athlete?.name ?? "Atleta";
+  const photo = (overview.data?.athlete as { photoUrl?: string | null } | null)?.photoUrl ?? null;
+
+  return (
+    <div className="ap-root">
+      <APSidebar name={name} photo={photo} />
+      <main className="ap-content">
+        <APTopbar name={name} photo={photo} />
+        <div className="ap-page">
+          <APSectionTitle>Comunicados</APSectionTitle>
+          {announcements.isLoading && <p className="ap-empty">Carregando...</p>}
+          {(announcements.data?.length ?? 0) === 0 && !announcements.isLoading && (
+            <p className="ap-empty">Nenhum comunicado publicado ainda.</p>
+          )}
+          <div className="ap-stack">
+            {(announcements.data ?? []).map((item) => (
+              <APCard key={item.id} className={item.pinned ? "ap-card--highlighted" : ""}>
+                <div className="ap-card__header">
+                  <div>
+                    <h3 className="ap-card__title">{item.pinned ? "📌 " : ""}{item.title}</h3>
+                    <p className="ap-card__meta">
+                      {item.author?.name ?? "Administração"} · {fmtDate(item.publishedAt)}
+                    </p>
+                  </div>
+                  {item.pinned && <APBadge tone="warning">Fixado</APBadge>}
+                </div>
+                <p className="ap-card__body">{item.body}</p>
+              </APCard>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
 // ── Page: Desempenho / Estatísticas ──────────
 export function AthletePortalPerformancePage() {
   const { user } = useAuth();
@@ -629,6 +712,11 @@ export function AthletePortalPerformancePage() {
 
   const chartData = overview?.evolution ?? [];
   const gamesPlayed = overview?.numbers?.gamesPlayed ?? 0;
+
+  const statsHistory = useQuery({
+    queryKey: ["athlete-stats-history"],
+    queryFn: () => apiRequest<Array<{ month: string; rating: number; goals: number; assists: number }>>("/athletes/me/stats-history?months=6")
+  });
 
   return (
     <div className="ap-root">
@@ -665,6 +753,24 @@ export function AthletePortalPerformancePage() {
             </div>
           </APCard>
         ) : null}
+
+        {/* Gráfico de evolução de rating — últimos 6 meses */}
+        {(statsHistory.data?.length ?? 0) > 0 && (
+          <APCard>
+            <h3 className="ap-card__title" style={{ marginBottom: "1rem" }}>Evolução · últimos 6 meses</h3>
+            <ResponsiveContainer width="100%" height={160}>
+              <LineChart data={statsHistory.data}>
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={24} />
+                <Tooltip
+                  contentStyle={{ background: "#0f172a", border: "none", borderRadius: "8px", color: "#fff", fontSize: "12px" }}
+                  formatter={(v: number) => [v.toFixed(1), "Rating"]}
+                />
+                <Line type="monotone" dataKey="rating" stroke="#dc2626" strokeWidth={2.5} dot={{ r: 3, fill: "#dc2626" }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </APCard>
+        )}
 
         {/* Rankings */}
         {overview?.ranking ? (
@@ -723,6 +829,33 @@ export function AthletePortalFinancePage() {
   const [checkout, setCheckout] = useState<AthleteSelfCheckoutResponse["checkout"] | null>(null);
   const [pixOpen, setPixOpen] = useState(false);
 
+  const [pixState, setPixState] = useState<null | {
+    paymentId: string;
+    qrCodeDataUrl: string;
+    pixCopyPaste: string;
+    amountCents: number;
+    month: number;
+    year: number;
+    loading: boolean;
+  }>(null);
+
+  async function handlePayPix(paymentId: string) {
+    setPixState({ paymentId, qrCodeDataUrl: "", pixCopyPaste: "", amountCents: 0, month: 0, year: 0, loading: true });
+    try {
+      const result = await apiRequest<{
+        paymentId: string;
+        qrCodeDataUrl: string;
+        pixCopyPaste: string;
+        amountCents: number;
+        month: number;
+        year: number;
+      }>(`/associates/me/payments/${paymentId}/pix`);
+      setPixState({ ...result, loading: false });
+    } catch {
+      setPixState(null);
+    }
+  }
+
   const checkoutMutation = useMutation({
     mutationFn: () => apiRequest<AthleteSelfCheckoutResponse>(`/athlete/me/payments/current/checkout?month=${now.month}&year=${now.year}`, { method: "POST" }),
     onSuccess: async (res) => {
@@ -739,6 +872,7 @@ export function AthletePortalFinancePage() {
   const recentPayments = overview?.recentPayments ?? [];
 
   return (
+    <>
     <div className="ap-root">
       <APSidebar name={name} photo={photo} />
       <div className="ap-page">
@@ -815,6 +949,12 @@ export function AthletePortalFinancePage() {
                   {p.status === "PAID" ? "Pago" : p.status === "LATE" ? "Atrasado" : "Pendente"}
                 </APBadge>
                 {p.status === "PAID" ? <Download size={14} className="ap-payment-row__download" /> : null}
+                {(p.status === "PENDING" || p.status === "LATE") && (
+                  <APButton tone="success" size="sm" icon={<QrCode size={13} />}
+                    onClick={() => handlePayPix(p.id)}>
+                    Pagar PIX
+                  </APButton>
+                )}
               </div>
             </div>
           )) : <p className="ap-empty-text">Nenhum pagamento encontrado.</p>}
@@ -823,6 +963,38 @@ export function AthletePortalFinancePage() {
         <APNav active="financeiro" />
       </div>
     </div>
+
+    {pixState !== null && (
+      <div className="ap-modal-overlay" onClick={() => setPixState(null)}>
+        <div className="ap-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="ap-modal__header">
+            <h3 className="ap-modal__title">Pagar com PIX</h3>
+            <button type="button" className="ap-modal__close" onClick={() => setPixState(null)}><X size={18} /></button>
+          </div>
+          {pixState.loading ? (
+            <div className="ap-modal__loading">Gerando QR Code...</div>
+          ) : (
+            <div className="ap-modal__body">
+              <p className="ap-modal__subtitle">
+                {fmtCurrency(pixState.amountCents)} — {String(pixState.month).padStart(2,"0")}/{pixState.year}
+              </p>
+              {pixState.qrCodeDataUrl && (
+                <img src={pixState.qrCodeDataUrl} alt="QR Code PIX" className="ap-pix-qr" />
+              )}
+              <div className="ap-pix-copy">
+                <code className="ap-pix-copy__code">{pixState.pixCopyPaste.slice(0, 40)}...</code>
+                <button type="button" className="ap-btn ap-btn--secondary ap-btn--sm"
+                  onClick={() => { navigator.clipboard.writeText(pixState.pixCopyPaste); }}>
+                  Copiar código
+                </button>
+              </div>
+              <p className="ap-pix-tip">Após o pagamento, aguarde confirmação do clube.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+  </>
   );
 }
 

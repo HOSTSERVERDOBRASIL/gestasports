@@ -5999,3 +5999,46 @@ body[data-theme="dark"] .fl-enterprise-header {
 .fi-entry-row__amount { font-size: 0.875rem; font-weight: 700; }
 .fi-entry-row__amount--revenue { color: #16a34a; }
 .fi-entry-row__amount--expense { color: #dc2626; }
+
+/* ── PIX Modal ── */
+.ap-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 1000;
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.ap-modal {
+  background: #fff; border-radius: 1rem; width: 100%; max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25); overflow: hidden;
+}
+.ap-modal__header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .875rem 1.25rem; border-bottom: 1px solid #f1f5f9;
+}
+.ap-modal__title { font-size: .9375rem; font-weight: 900; color: #0f172a; margin: 0; }
+.ap-modal__close {
+  background: none; border: none; cursor: pointer; color: #64748b;
+  padding: .25rem; border-radius: .375rem;
+}
+.ap-modal__close:hover { background: #f1f5f9; }
+.ap-modal__body { padding: 1.25rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.ap-modal__subtitle { font-size: 1.125rem; font-weight: 900; color: #0f172a; margin: 0; }
+.ap-modal__loading { padding: 2rem; text-align: center; color: #64748b; font-weight: 600; }
+.ap-pix-qr { width: 220px; height: 220px; border-radius: .5rem; border: 2px solid #f1f5f9; }
+.ap-pix-copy {
+  width: 100%; display: flex; align-items: center; gap: .5rem;
+  background: #f8fafc; border-radius: .5rem; padding: .625rem .875rem;
+  border: 1px solid #e2e8f0;
+}
+.ap-pix-copy__code {
+  flex: 1; font-size: .75rem; color: #475569; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.ap-pix-tip { font-size: .8125rem; color: #64748b; text-align: center; margin: 0; }
+
+/* ── Comunicados ── */
+.ap-card--highlighted { border-color: #fbbf24; background: #fffbeb; }
+.ap-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; margin-bottom: .625rem; }
+.ap-card__title { font-size: .9375rem; font-weight: 800; color: #0f172a; margin: 0; }
+.ap-card__meta { font-size: .75rem; color: #94a3b8; margin: .25rem 0 0; }
+.ap-card__body { font-size: .875rem; color: #475569; line-height: 1.6; white-space: pre-wrap; }
+.ap-stack { display: flex; flex-direction: column; gap: .875rem; }
+.ap-empty { color: #94a3b8; font-size: .875rem; font-weight: 600; text-align: center; padding: 2rem; }

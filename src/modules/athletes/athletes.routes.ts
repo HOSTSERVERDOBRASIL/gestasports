@@ -2274,6 +2274,67 @@ export async function athleteRoutes(app: FastifyInstance) {
       }
     });
   });
+
+  // ── GET /athletes/me/stats-history ──────────────────────────────────────────
+  app.get("/athletes/me/stats-history", { preHandler: app.authorize(["ATHLETE", "ASSOCIATE"]) }, async (request) => {
+    const { months = "6" } = z.object({ months: z.string().default("6") }).parse(request.query);
+    const monthsInt = Math.min(24, Math.max(1, parseInt(months, 10)));
+
+    const user = await prisma.user.findUnique({
+      where: { id: request.user.sub },
+      include: { associate: { include: { athlete: { select: { id: true } } } } }
+    });
+    const athleteId = user?.associate?.athlete?.id;
+    if (!athleteId) return [];
+
+    // Busca avaliações técnicas
+    const evals = await prisma.athleteTechnicalEvaluation.findMany({
+      where: { athleteId },
+      orderBy: { createdAt: "desc" },
+      take: monthsInt * 4,
+      select: { createdAt: true, finalScore: true }
+    });
+
+    // Busca eventos de gol/assistência
+    const events = await prisma.gameEvent.findMany({
+      where: {
+        athleteId,
+        type: { in: ["GOAL", "ASSIST"] },
+        game: { status: "FINISHED" }
+      },
+      select: { type: true, game: { select: { date: true } } },
+      take: 200
+    });
+
+    // Agrupa por mês (Mmm/AA)
+    const map = new Map<string, { rating: number[]; goals: number; assists: number }>();
+
+    for (const ev of evals) {
+      const key = new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit" }).format(ev.createdAt);
+      const entry = map.get(key) ?? { rating: [], goals: 0, assists: 0 };
+      if (ev.finalScore != null) entry.rating.push(ev.finalScore);
+      map.set(key, entry);
+    }
+
+    for (const ev of events) {
+      if (!ev.game?.date) continue;
+      const key = new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit" }).format(new Date(ev.game.date));
+      const entry = map.get(key) ?? { rating: [], goals: 0, assists: 0 };
+      if (ev.type === "GOAL") entry.goals++;
+      else entry.assists++;
+      map.set(key, entry);
+    }
+
+    return Array.from(map.entries())
+      .slice(0, monthsInt)
+      .map(([month, data]) => ({
+        month,
+        rating: data.rating.length > 0 ? parseFloat((data.rating.reduce((a, b) => a + b, 0) / data.rating.length).toFixed(1)) : 0,
+        goals: data.goals,
+        assists: data.assists
+      }))
+      .reverse();
+  });
 }
 
 
