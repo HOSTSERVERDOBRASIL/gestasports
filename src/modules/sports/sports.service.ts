@@ -11,6 +11,7 @@ import {
   TeamSide
 } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
+import OpenAI from "openai";
 
 type YearRange = {
   gte: Date;
@@ -182,7 +183,8 @@ async function createSuspensionIfMissing(
   athleteId: string,
   origin: SuspensionOrigin,
   startsAt: Date,
-  reason: string
+  reason: string,
+  tenantId: string | null
 ) {
   const existing = await tx.suspension.findFirst({
     where: {
@@ -203,7 +205,8 @@ async function createSuspensionIfMissing(
       reason,
       startsAt,
       active: true,
-      matchesToServe: 1
+      matchesToServe: 1,
+      ...(tenantId ? { tenantId } : {})
     }
   });
 }
@@ -219,7 +222,7 @@ async function enforceAutomaticSuspension(
 
   const game = await tx.game.findUnique({
     where: { id: gameId },
-    select: { id: true, date: true, seasonId: true }
+    select: { id: true, date: true, seasonId: true, tenantId: true }
   });
 
   if (!game) {
@@ -249,7 +252,8 @@ async function enforceAutomaticSuspension(
       event.athleteId,
       SuspensionOrigin.DIRECT_RED,
       game.date,
-      "Suspensão automática por vermelho direto"
+      "Suspensão automática por vermelho direto",
+      game.tenantId
     );
 
     return;
@@ -280,7 +284,8 @@ async function enforceAutomaticSuspension(
       event.athleteId,
       SuspensionOrigin.YELLOW_ACCUMULATION,
       game.date,
-      "Suspensão automática por acumulação de 3 amarelos"
+      "Suspensão automática por acumulação de 3 amarelos",
+      game.tenantId
     );
   }
 }
@@ -300,6 +305,40 @@ async function checkAthleteSuspension(
   });
 
   return activeSuspension;
+}
+
+async function serveActiveSuspensions(tx: any, gameId: string) {
+  const game = await tx.game.findUnique({
+    where: { id: gameId },
+    select: { id: true, date: true, tenantId: true }
+  });
+  if (!game) return;
+
+  const presentAthletes = await tx.gameLineup.findMany({
+    where: { gameId, presence: true },
+    select: { athleteId: true }
+  });
+
+  for (const { athleteId } of presentAthletes) {
+    const suspension = await tx.suspension.findFirst({
+      where: {
+        athleteId,
+        active: true,
+        startsAt: { lte: game.date },
+        OR: [{ endsAt: null }, { endsAt: { gte: game.date } }]
+      }
+    });
+    if (!suspension) continue;
+    const remaining = suspension.matchesToServe - 1;
+    await tx.suspension.update({
+      where: { id: suspension.id },
+      data: {
+        matchesToServe: remaining,
+        active: remaining > 0,
+        endsAt: remaining <= 0 ? game.date : suspension.endsAt
+      }
+    });
+  }
 }
 
 export async function createGame(input: CreateGameInput) {
@@ -422,6 +461,7 @@ export async function updateGameClock(gameId: string, action: GameClockAction) {
         }
       });
       await updateCompetitionStandings(tx, gameId);
+      await serveActiveSuspensions(tx, gameId);
       return updated;
     });
   }
@@ -662,9 +702,20 @@ async function recalculateGameScore(tx: any, gameId: string) {
 async function updateCompetitionStandings(tx: any, gameId: string) {
   const game = await tx.game.findUnique({
     where: { id: gameId },
+    select: { competitionId: true, status: true }
+  });
+
+  if (!game?.competitionId || game.status !== "FINISHED") return;
+
+  // Busca todos os jogos FINISHED desta competição
+  const allGames = await tx.game.findMany({
+    where: {
+      competitionId: game.competitionId,
+      status: "FINISHED",
+      redScore: { not: null },
+      whiteScore: { not: null }
+    },
     select: {
-      id: true,
-      competitionId: true,
       homeTeamId: true,
       awayTeamId: true,
       homeClubId: true,
@@ -672,77 +723,39 @@ async function updateCompetitionStandings(tx: any, gameId: string) {
       redScore: true,
       whiteScore: true,
       isDraw: true,
-      winnerSide: true,
-      status: true
+      winnerSide: true
     }
   });
 
-  if (!game?.competitionId || game.status !== "FINISHED") return;
-  if (game.redScore === null || game.whiteScore === null) return;
+  // Monta mapa de stats por teamId
+  const stats = new Map<string, { points: number; wins: number; draws: number; losses: number; goalsFor: number; goalsAgainst: number }>();
 
-  // Determine which team/club is RED and which is WHITE
-  const redTeamId = game.homeTeamId;
-  const whiteTeamId = game.awayTeamId;
-  const redClubId = game.homeClubId;
-  const whiteClubId = game.awayClubId;
-
-  const sides: Array<{
-    teamId: string | null;
-    clubId: string | null;
-    goalsFor: number;
-    goalsAgainst: number;
-    won: boolean;
-    drew: boolean;
-    lost: boolean;
-  }> = [];
-
-  if (redTeamId || redClubId) {
-    sides.push({
-      teamId: redTeamId,
-      clubId: redClubId,
-      goalsFor: game.redScore,
-      goalsAgainst: game.whiteScore,
-      won: !game.isDraw && game.winnerSide === TeamSide.RED,
-      drew: game.isDraw,
-      lost: !game.isDraw && game.winnerSide !== TeamSide.RED
-    });
+  for (const g of allGames) {
+    const sides: Array<[string | null, boolean]> = [
+      [g.homeTeamId as string | null, true],
+      [g.awayTeamId as string | null, false]
+    ];
+    for (const [teamId, isRed] of sides) {
+      if (!teamId) continue;
+      const s = stats.get(teamId) ?? { points: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0 };
+      const gf = isRed ? (g.redScore as number) : (g.whiteScore as number);
+      const ga = isRed ? (g.whiteScore as number) : (g.redScore as number);
+      const won = !g.isDraw && ((isRed && g.winnerSide === TeamSide.RED) || (!isRed && g.winnerSide === TeamSide.WHITE));
+      const drew = g.isDraw as boolean;
+      s.goalsFor += gf;
+      s.goalsAgainst += ga;
+      if (won) { s.wins++; s.points += 3; }
+      else if (drew) { s.draws++; s.points += 1; }
+      else { s.losses++; }
+      stats.set(teamId, s);
+    }
   }
 
-  if (whiteTeamId || whiteClubId) {
-    sides.push({
-      teamId: whiteTeamId,
-      clubId: whiteClubId,
-      goalsFor: game.whiteScore,
-      goalsAgainst: game.redScore,
-      won: !game.isDraw && game.winnerSide === TeamSide.WHITE,
-      drew: game.isDraw,
-      lost: !game.isDraw && game.winnerSide !== TeamSide.WHITE
-    });
-  }
-
-  for (const side of sides) {
-    const where = side.teamId
-      ? { competitionId_teamId: { competitionId: game.competitionId, teamId: side.teamId } }
-      : null;
-
-    if (!where) continue;
-
-    const existing = await tx.competitionTeam.findUnique({ where });
-    if (!existing) continue;
-
-    const points = side.won ? 3 : side.drew ? 1 : 0;
-
-    await tx.competitionTeam.update({
-      where,
-      data: {
-        points: { increment: points },
-        wins: { increment: side.won ? 1 : 0 },
-        draws: { increment: side.drew ? 1 : 0 },
-        losses: { increment: side.lost ? 1 : 0 },
-        goalsFor: { increment: side.goalsFor },
-        goalsAgainst: { increment: side.goalsAgainst },
-        goalDifference: { increment: side.goalsFor - side.goalsAgainst }
-      }
+  // Atualiza cada CompetitionTeam desta competição com os valores recalculados
+  for (const [teamId, s] of stats) {
+    await tx.competitionTeam.updateMany({
+      where: { competitionId: game.competitionId, teamId },
+      data: { ...s, goalDifference: s.goalsFor - s.goalsAgainst }
     });
   }
 }
@@ -1387,5 +1400,169 @@ export async function getActiveSuspensions() {
   });
 }
 
+type LineupSuggestionAthlete = {
+  athleteId: string;
+  name: string;
+  position: string;
+  role: string;
+};
 
+type LineupSuggestionResult = {
+  redTeam: LineupSuggestionAthlete[];
+  whiteTeam: LineupSuggestionAthlete[];
+  formation: string;
+  reasoning: string;
+};
 
+function fallbackLineupSuggestion(
+  athletes: Array<{ id: string; name: string; position: string; rating: number }>
+): LineupSuggestionResult {
+  // Sort by rating descending
+  const sorted = [...athletes].sort((a, b) => b.rating - a.rating);
+
+  const goalkeepers = sorted.filter((a) => a.position === "GOALKEEPER" || a.position === "BOTH");
+  const outfield = sorted.filter((a) => a.position !== "GOALKEEPER" && a.position !== "BOTH");
+
+  const redTeam: LineupSuggestionAthlete[] = [];
+  const whiteTeam: LineupSuggestionAthlete[] = [];
+
+  // Assign one goalkeeper per side
+  const gkRed = goalkeepers[0];
+  const gkWhite = goalkeepers[1];
+
+  if (gkRed) {
+    redTeam.push({ athleteId: gkRed.id, name: gkRed.name, position: gkRed.position, role: "GOALKEEPER" });
+  }
+  if (gkWhite) {
+    whiteTeam.push({ athleteId: gkWhite.id, name: gkWhite.name, position: gkWhite.position, role: "GOALKEEPER" });
+  }
+
+  // Distribute outfield players alternately
+  outfield.forEach((athlete, index) => {
+    const entry: LineupSuggestionAthlete = { athleteId: athlete.id, name: athlete.name, position: athlete.position, role: "STARTER" };
+    if (index % 2 === 0) {
+      if (redTeam.length < 11) redTeam.push(entry);
+      else if (whiteTeam.length < 11) whiteTeam.push(entry);
+    } else {
+      if (whiteTeam.length < 11) whiteTeam.push(entry);
+      else if (redTeam.length < 11) redTeam.push(entry);
+    }
+  });
+
+  return {
+    redTeam,
+    whiteTeam,
+    formation: "4-3-3",
+    reasoning: "Sugestão automática sem IA: atletas ordenados por rating e distribuídos de forma equilibrada."
+  };
+}
+
+export async function suggestLineup(gameId: string, tenantId: string): Promise<LineupSuggestionResult> {
+  const game = await prisma.game.findUnique({
+    where: { id: gameId },
+    select: {
+      id: true,
+      date: true,
+      callUps: {
+        where: { status: { in: ["CONFIRMED", "CALLED"] } },
+        select: {
+          athleteId: true,
+          athlete: {
+            select: {
+              id: true,
+              name: true,
+              position: true,
+              rating: true,
+              medicalStatus: true,
+              status: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!game) {
+    throw new Error("Jogo não encontrado.");
+  }
+
+  const calledAthletes = game.callUps.map((c) => ({
+    id: c.athlete.id,
+    name: c.athlete.name,
+    position: c.athlete.position as string,
+    rating: c.athlete.rating,
+    medicalStatus: c.athlete.medicalStatus,
+    status: c.athlete.status as string
+  }));
+
+  // Busca suspensões ativas
+  const now = game.date;
+  const suspensions = await prisma.suspension.findMany({
+    where: {
+      athleteId: { in: calledAthletes.map((a) => a.id) },
+      active: true,
+      startsAt: { lte: now },
+      OR: [{ endsAt: null }, { endsAt: { gte: now } }]
+    },
+    select: { athleteId: true, reason: true }
+  });
+  const suspendedIds = new Set(suspensions.map((s) => s.athleteId));
+
+  // Available athletes (not suspended, active, cleared)
+  const available = calledAthletes.filter(
+    (a) => !suspendedIds.has(a.id) && a.status === "ACTIVE" && a.medicalStatus === "CLEARED"
+  );
+
+  // Busca presença nos últimos 10 jogos
+  const recentLineups = await prisma.gameLineup.groupBy({
+    by: ["athleteId"],
+    where: {
+      athleteId: { in: available.map((a) => a.id) },
+      presence: true,
+      game: { tenantId, date: { lte: now } }
+    },
+    _count: { athleteId: true },
+    orderBy: { _count: { athleteId: "desc" } },
+    take: 10
+  });
+
+  const presenceMap = new Map(recentLineups.map((r) => [r.athleteId, r._count.athleteId]));
+  const athletesWithPresence = available.map((a) => ({
+    ...a,
+    recentAppearances: presenceMap.get(a.id) ?? 0
+  }));
+
+  if (!process.env.OPENAI_API_KEY) {
+    return fallbackLineupSuggestion(available);
+  }
+
+  try {
+    const client = new OpenAI();
+    const suspendedList = suspensions.map((s) => ({ athleteId: s.athleteId, reason: s.reason }));
+
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: `Você é um assistente técnico de futebol. Dado o elenco abaixo, sugira a melhor escalação dividida entre Time A (RED) e Time B (WHITE) para um racha interno.
+Retorne JSON: { "redTeam": [{ "athleteId": "...", "name": "...", "position": "...", "role": "..." }], "whiteTeam": [...], "formation": "4-3-3", "reasoning": "..." }
+Distribua os atletas de forma equilibrada por qualidade (rating).
+Elenco: ${JSON.stringify(athletesWithPresence)}
+Atletas suspensos (não podem jogar): ${JSON.stringify(suspendedList)}`
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      return fallbackLineupSuggestion(available);
+    }
+
+    const parsed = JSON.parse(content) as LineupSuggestionResult;
+    return parsed;
+  } catch {
+    return fallbackLineupSuggestion(available);
+  }
+}

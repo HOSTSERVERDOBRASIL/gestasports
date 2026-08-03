@@ -390,6 +390,16 @@ export function AthletePortalGamesPage() {
   const photo = overview?.athlete?.photoUrl ?? null;
   const [tab, setTab] = useState<"proximos" | "historico">("proximos");
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const respondCallupMutation = useMutation({
+    mutationFn: ({ gameId, status }: { gameId: string; status: "CONFIRMED" | "DECLINED" }) =>
+      apiRequest(`/sports/games/${gameId}/my-callup`, {
+        method: "PATCH",
+        body: JSON.stringify({ status })
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["athlete-overview"] })
+  });
 
   const nextGame = overview?.nextGame;
   const recentGames = overview?.recentGames ?? [];
@@ -470,10 +480,14 @@ export function AthletePortalGamesPage() {
 
               {/* Ações */}
               <div className="ap-convocacao-detail__actions">
-                <APButton tone="success" icon={<Check size={16} />} size="lg" fullWidth>
+                <APButton tone="success" icon={<Check size={16} />} size="lg" fullWidth
+                  onClick={() => nextGame && respondCallupMutation.mutate({ gameId: nextGame.gameId, status: "CONFIRMED" })}
+                  disabled={respondCallupMutation.isPending}>
                   Confirmar presença
                 </APButton>
-                <APButton tone="ghost" icon={<X size={16} />} size="lg" fullWidth>
+                <APButton tone="ghost" icon={<X size={16} />} size="lg" fullWidth
+                  onClick={() => nextGame && respondCallupMutation.mutate({ gameId: nextGame.gameId, status: "DECLINED" })}
+                  disabled={respondCallupMutation.isPending}>
                   Não poderei comparecer
                 </APButton>
               </div>
@@ -552,8 +566,16 @@ export function AthletePortalGamesPage() {
                   </div>
                 </div>
                 <div className="ap-convocacao-card__actions">
-                  <APButton tone="success" icon={<Check size={15} />} fullWidth onClick={() => {}}>Confirmar presença</APButton>
-                  <APButton tone="ghost" icon={<X size={15} />} fullWidth onClick={() => {}}>Não vou jogar</APButton>
+                  <APButton tone="success" icon={<Check size={15} />} fullWidth
+                    onClick={() => nextGame && respondCallupMutation.mutate({ gameId: nextGame.gameId, status: "CONFIRMED" })}
+                    disabled={respondCallupMutation.isPending}>
+                    Confirmar presença
+                  </APButton>
+                  <APButton tone="ghost" icon={<X size={15} />} fullWidth
+                    onClick={() => nextGame && respondCallupMutation.mutate({ gameId: nextGame.gameId, status: "DECLINED" })}
+                    disabled={respondCallupMutation.isPending}>
+                    Não vou jogar
+                  </APButton>
                 </div>
               </APCard>
             ) : (

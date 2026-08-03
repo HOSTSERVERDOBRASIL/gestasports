@@ -1,6 +1,7 @@
+import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowLeftRight, ClipboardList } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, ClipboardList, Printer } from "lucide-react";
 import { apiRequest } from "../../services/api";
 import { PageHeader } from "../../components/ui/PageHeader";
 import { SectionCard } from "../../components/ui/SectionCard";
@@ -33,8 +34,26 @@ export function JogoSumulaPage() {
   const gameQuery = useQuery({
     queryKey: ["game", id],
     queryFn: () => apiRequest<Game>(`/sports/games/${id}`),
-    enabled: Boolean(id)
+    enabled: Boolean(id),
+    refetchInterval: (query) => query.state.data?.status === "RUNNING" ? 5000 : false
   });
+
+  const [displaySeconds, setDisplaySeconds] = useState(0);
+
+  useEffect(() => {
+    const g = gameQuery.data;
+    if (!g || g.status !== "RUNNING" || !g.startedAt) {
+      setDisplaySeconds(g?.elapsedSeconds ?? 0);
+      return;
+    }
+    const interval = setInterval(() => {
+      const elapsed = (g.elapsedSeconds ?? 0) + Math.floor((Date.now() - new Date(g.startedAt!).getTime()) / 1000);
+      setDisplaySeconds(Math.max(0, elapsed));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [gameQuery.data]);
+
+  const displayMinute = Math.min(130, Math.floor(displaySeconds / 60));
 
   const g = gameQuery.data;
 
@@ -102,6 +121,14 @@ export function JogoSumulaPage() {
             >
               <ArrowLeft size={14} /> Voltar ao jogo
             </Link>
+            <a
+              href={`/api/sports/games/${id}/sumula-print`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-black text-white hover:bg-slate-800"
+            >
+              <Printer size={14} /> Imprimir súmula
+            </a>
             <Link
               to={`/jogos?view=OPERACAO&subView=EVENTOS&gameId=${id}`}
               className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-black text-white hover:bg-slate-800"
@@ -123,7 +150,24 @@ export function JogoSumulaPage() {
                 <p className="text-xs font-black uppercase tracking-wide text-slate-500">{redTeamName}</p>
                 <p className="mt-1 text-5xl font-black text-slate-950">{g?.redScore ?? goals.filter((e) => e.side === "RED").length}</p>
               </div>
-              <p className="text-2xl font-black text-slate-300">×</p>
+              <div className="flex flex-col items-center gap-1">
+                <p className="text-2xl font-black text-slate-300">×</p>
+                {g?.status === "RUNNING" && (
+                  <span className="animate-pulse rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-black text-emerald-700">
+                    {displayMinute}′
+                  </span>
+                )}
+                {g?.status === "PAUSED" && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-700">
+                    {displayMinute}′
+                  </span>
+                )}
+                {g?.status === "FINISHED" && (
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-500">
+                    FIM
+                  </span>
+                )}
+              </div>
               <div className="text-center">
                 <p className="text-xs font-black uppercase tracking-wide text-slate-500">{whiteTeamName}</p>
                 <p className="mt-1 text-5xl font-black text-slate-950">{g?.whiteScore ?? goals.filter((e) => e.side === "WHITE").length}</p>

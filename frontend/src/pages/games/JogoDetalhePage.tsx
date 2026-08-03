@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   ArrowLeftRight,
   CalendarDays,
-  ClipboardList, MapPin, Pencil, Users
+  ClipboardList, MapPin, Pencil, Sparkles, Users
 } from "lucide-react";
 import { apiRequest } from "../../services/api";
 import { PageHeader } from "../../components/ui/PageHeader";
@@ -45,8 +46,52 @@ export function JogoDetalhePage() {
   const gameQuery = useQuery({
     queryKey: ["game", id],
     queryFn: () => apiRequest<Game>(`/sports/games/${id}`),
-    enabled: Boolean(id)
+    enabled: Boolean(id),
+    refetchInterval: (query) => query.state.data?.status === "RUNNING" ? 5000 : false
   });
+
+  const suspensionsQuery = useQuery({
+    queryKey: ["active-suspensions"],
+    queryFn: () => apiRequest<Array<{ id: string; athlete: { id: string; name: string }; reason: string }>>("/sports/suspensions/active")
+  });
+
+  const suspendedIds = new Set((suspensionsQuery.data ?? []).map(s => s.athlete.id));
+
+  const [displaySeconds, setDisplaySeconds] = useState(0);
+
+  useEffect(() => {
+    const g = gameQuery.data;
+    if (!g || g.status !== "RUNNING" || !g.startedAt) {
+      setDisplaySeconds(g?.elapsedSeconds ?? 0);
+      return;
+    }
+    const interval = setInterval(() => {
+      const elapsed = (g.elapsedSeconds ?? 0) + Math.floor((Date.now() - new Date(g.startedAt!).getTime()) / 1000);
+      setDisplaySeconds(Math.max(0, elapsed));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [gameQuery.data]);
+
+  const displayMinute = Math.min(130, Math.floor(displaySeconds / 60));
+
+  const [aiSuggestion, setAiSuggestion] = useState<null | { redTeam: any[]; whiteTeam: any[]; reasoning: string }>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  async function handleAiSuggestion() {
+    if (!id) return;
+    setAiLoading(true);
+    try {
+      const result = await apiRequest<{ redTeam: any[]; whiteTeam: any[]; reasoning: string }>(
+        `/sports/games/${id}/lineup-suggestion`,
+        { method: "POST" }
+      );
+      setAiSuggestion(result);
+    } catch {
+      // silencia erro
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   const g = gameQuery.data;
 
@@ -119,6 +164,21 @@ export function JogoDetalhePage() {
                 <span className="text-slate-300">×</span>
                 <span className="rounded-lg bg-slate-100 px-3 py-1">{whiteScore}</span>
               </div>
+            )}
+            {g.status === "RUNNING" && (
+              <span className="animate-pulse rounded-full bg-emerald-100 px-3 py-1 text-sm font-black text-emerald-700">
+                {displayMinute}′
+              </span>
+            )}
+            {g.status === "PAUSED" && (
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-black text-amber-700">
+                {displayMinute}′
+              </span>
+            )}
+            {g.status === "FINISHED" && (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-500">
+                FIM
+              </span>
             )}
           </div>
           <div className="flex flex-wrap gap-4 text-sm font-semibold text-slate-500">
@@ -195,38 +255,83 @@ export function JogoDetalhePage() {
           )}
 
           {tab === "escalacao" && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {(["RED", "WHITE"] as const).map((side) => {
-                const team = side === "RED" ? redTeam : whiteTeam;
-                const teamName = side === "RED" ? (g.redTeamName ?? "Time A") : (g.whiteTeamName ?? "Time B");
-                return (
-                  <div key={side}>
-                    <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-400">{teamName}</p>
-                    {team.length === 0 ? (
-                      <p className="text-sm font-semibold text-slate-400">Sem jogadores escalados</p>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {team.map((l) => (
-                          <div key={l.id} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-xs font-black text-slate-600">
-                              {l.jerseyNumber ?? "?"}
-                            </div>
-                            <span className="text-sm font-semibold text-slate-800">{l.athlete?.name ?? "—"}</span>
-                            <span className="ml-auto text-xs font-semibold text-slate-400">{l.role}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+            <div className="space-y-4">
+              {(suspensionsQuery.data?.length ?? 0) > 0 && (
+                <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-600" />
+                  <span>
+                    {suspensionsQuery.data!.length} atleta(s) suspenso(s): {suspensionsQuery.data!.map(s => s.athlete.name).join(", ")}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <button onClick={handleAiSuggestion} disabled={aiLoading}
+                  className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-700 hover:bg-blue-100 disabled:opacity-50">
+                  <Sparkles size={14} /> {aiLoading ? "Calculando..." : "Sugestão IA"}
+                </button>
+              </div>
+
+              {aiSuggestion && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles size={16} className="text-blue-600" />
+                    <p className="text-sm font-black text-blue-900">Sugestão de escalação por IA</p>
                   </div>
-                );
-              })}
-              <div className="sm:col-span-2">
-                <Link
-                  to={`/jogos/${g.id}/escalacao`}
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 hover:bg-slate-50"
-                >
-                  <Users size={14} /> Ir para escalação completa
-                </Link>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-black uppercase text-red-600 mb-2">Time A</p>
+                      {aiSuggestion.redTeam.map((a: any) => (
+                        <p key={a.athleteId} className="text-sm font-semibold text-slate-800">{a.name} · {a.role}</p>
+                      ))}
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase text-slate-500 mb-2">Time B</p>
+                      {aiSuggestion.whiteTeam.map((a: any) => (
+                        <p key={a.athleteId} className="text-sm font-semibold text-slate-800">{a.name} · {a.role}</p>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs font-semibold text-slate-600 italic">{aiSuggestion.reasoning}</p>
+                </div>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {(["RED", "WHITE"] as const).map((side) => {
+                  const team = side === "RED" ? redTeam : whiteTeam;
+                  const teamName = side === "RED" ? (g.redTeamName ?? "Time A") : (g.whiteTeamName ?? "Time B");
+                  return (
+                    <div key={side}>
+                      <p className="mb-2 text-xs font-black uppercase tracking-wide text-slate-400">{teamName}</p>
+                      {team.length === 0 ? (
+                        <p className="text-sm font-semibold text-slate-400">Sem jogadores escalados</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {team.map((l) => (
+                            <div key={l.id} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-xs font-black text-slate-600">
+                                {l.jerseyNumber ?? "?"}
+                              </div>
+                              <span className="text-sm font-semibold text-slate-800">{l.athlete?.name ?? "—"}</span>
+                              {suspendedIds.has(l.athleteId) && (
+                                <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-black text-amber-700">SUSP</span>
+                              )}
+                              <span className="ml-auto text-xs font-semibold text-slate-400">{l.role}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <div className="sm:col-span-2">
+                  <Link
+                    to={`/jogos/${g.id}/escalacao`}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 hover:bg-slate-50"
+                  >
+                    <Users size={14} /> Ir para escalação completa
+                  </Link>
+                </div>
               </div>
             </div>
           )}

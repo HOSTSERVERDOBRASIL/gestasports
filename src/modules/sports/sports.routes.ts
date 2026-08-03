@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
-import { EventType, FieldStatus, GameMode, GameType, Prisma, TeamSide } from "@prisma/client";
+import { CallUpStatus, EventType, FieldStatus, GameMode, GameType, Prisma, TeamSide } from "@prisma/client";
 import { z } from "zod";
 import {
   createGame,
@@ -13,6 +13,7 @@ import {
   registerGameSubstitution,
   registerGameEvents,
   setGameResult,
+  suggestLineup,
   updateGameClock,
   upsertLineup
 } from "./sports.service.js";
@@ -793,6 +794,271 @@ export async function sportsRoutes(app: FastifyInstance) {
 
   app.get("/sports/suspensions/active", { preHandler: app.authenticate }, async () => {
     return getActiveSuspensions();
+  });
+
+  // Evolution 3 — Atleta confirma/recusa convocação
+  app.patch("/sports/games/:id/my-callup", { preHandler: app.authorize(["ATHLETE"]) }, async (request, reply) => {
+    const params = gameIdParamsSchema.parse(request.params);
+    const payload = z.object({
+      status: z.enum(["CONFIRMED", "DECLINED", "MAYBE"])
+    }).parse(request.body);
+
+    const userId = request.user.sub;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { associateId: true }
+    });
+
+    if (!user?.associateId) {
+      return reply.status(404).send({ message: "Atleta não encontrado para este usuário." });
+    }
+
+    const associate = await prisma.associate.findUnique({
+      where: { id: user.associateId },
+      select: { athlete: { select: { id: true } } }
+    });
+
+    if (!associate?.athlete) {
+      return reply.status(404).send({ message: "Atleta não encontrado para este usuário." });
+    }
+
+    const athleteId = associate.athlete.id;
+    const status = payload.status as CallUpStatus;
+
+    const callup = await prisma.gameCallUp.upsert({
+      where: { gameId_athleteId: { gameId: params.id, athleteId } },
+      update: {
+        status,
+        confirmedAt: status === CallUpStatus.CONFIRMED ? new Date() : null
+      },
+      create: {
+        gameId: params.id,
+        athleteId,
+        status,
+        confirmedAt: status === CallUpStatus.CONFIRMED ? new Date() : null
+      }
+    });
+
+    return callup;
+  });
+
+  // Evolution 4 — Sugestão de escalação por IA
+  app.post("/sports/games/:id/lineup-suggestion", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
+    const params = gameIdParamsSchema.parse(request.params);
+    const tenantId = request.tenant?.id ?? request.user.tenantId;
+
+    if (!tenantId) {
+      return reply.status(400).send({ message: "Ambiente do clube não identificado." });
+    }
+
+    try {
+      const suggestion = await suggestLineup(params.id, tenantId);
+      return suggestion;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao gerar sugestão";
+      return reply.status(404).send({ message });
+    }
+  });
+
+  // Evolution 5 — Súmula imprimível em HTML
+  app.get("/sports/games/:id/sumula-print", { preHandler: app.authenticate }, async (request, reply) => {
+    const params = gameIdParamsSchema.parse(request.params);
+
+    const game = await prisma.game.findUnique({
+      where: { id: params.id },
+      include: {
+        homeClub: { select: { name: true } },
+        awayClub: { select: { name: true } },
+        lineups: {
+          include: { athlete: { select: { id: true, name: true, position: true } } },
+          orderBy: [{ side: "asc" }, { tacticalSlot: "asc" }, { jerseyNumber: "asc" }]
+        },
+        events: {
+          include: { athlete: { select: { id: true, name: true } } },
+          orderBy: [{ minute: "asc" }, { createdAt: "asc" }]
+        },
+        substitutions: {
+          include: {
+            athleteOut: { select: { id: true, name: true } },
+            athleteIn: { select: { id: true, name: true } }
+          },
+          orderBy: [{ minute: "asc" }, { createdAt: "asc" }]
+        }
+      }
+    });
+
+    if (!game) {
+      return reply.status(404).send({ message: "Jogo não encontrado" });
+    }
+
+    const redName = game.redTeamName ?? game.homeClub?.name ?? "Time A";
+    const whiteName = game.whiteTeamName ?? game.awayClub?.name ?? "Time B";
+    const redScore = game.redScore ?? "-";
+    const whiteScore = game.whiteScore ?? "-";
+    const dateLabel = game.date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+    const redLineup = game.lineups.filter((l) => l.side === TeamSide.RED && l.role !== "ABSENT");
+    const whiteLineup = game.lineups.filter((l) => l.side === TeamSide.WHITE && l.role !== "ABSENT");
+
+    const cards = game.events.filter((e) => e.type === "YELLOW_CARD" || e.type === "RED_CARD");
+    const goals = game.events.filter((e) => e.type === "GOAL" || e.type === "OWN_GOAL" || e.type === "PENALTY_SCORED");
+
+    function lineupRows(lineups: typeof redLineup) {
+      return lineups.map((l) => `<tr><td>${l.jerseyNumber ?? "-"}</td><td>${l.athlete.name}</td><td>${l.role}</td></tr>`).join("");
+    }
+
+    function eventsRows(events: typeof goals) {
+      return events.map((e) => `<tr><td>${e.minute ?? "-"}'</td><td>${e.type}</td><td>${e.athlete.name}</td><td>${e.side ?? "-"}</td></tr>`).join("");
+    }
+
+    function cardRows(events: typeof cards) {
+      return events.map((e) => `<tr><td>${e.athlete.name}</td><td>${e.type === "YELLOW_CARD" ? "Amarelo" : "Vermelho"}</td><td>${e.minute ?? "-"}'</td></tr>`).join("");
+    }
+
+    function subsRows(subs: NonNullable<typeof game>["substitutions"]) {
+      return subs.map((s) => `<tr><td>${s.minute ?? "-"}'</td><td>${s.athleteOut.name}</td><td>${s.athleteIn.name}</td><td>${s.side ?? "-"}</td></tr>`).join("");
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Súmula — ${redName} vs ${whiteName}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; color: #111; }
+  h1 { font-size: 18px; text-align: center; margin-bottom: 4px; }
+  .subtitle { text-align: center; margin-bottom: 16px; color: #555; }
+  .score { text-align: center; font-size: 32px; font-weight: bold; margin: 12px 0; }
+  .section { margin-bottom: 16px; }
+  .section h2 { font-size: 13px; background: #eee; padding: 4px 8px; margin-bottom: 4px; border-left: 3px solid #333; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
+  th { background: #f5f5f5; }
+  .referees { margin-bottom: 8px; font-size: 11px; color: #444; }
+  @media print {
+    body { padding: 10px; }
+    button { display: none; }
+  }
+</style>
+</head>
+<body>
+<h1>Súmula Oficial</h1>
+<div class="subtitle">${dateLabel} &mdash; ${game.location}</div>
+<div class="score">${redName} ${redScore} &times; ${whiteScore} ${whiteName}</div>
+
+${game.refereeName ? `<div class="referees">Árbitro: ${game.refereeName}${game.assistantOneName ? ` &bull; Assistente 1: ${game.assistantOneName}` : ""}${game.assistantTwoName ? ` &bull; Assistente 2: ${game.assistantTwoName}` : ""}</div>` : ""}
+
+<div class="section">
+  <h2>Escalação</h2>
+  <div class="two-col">
+    <div>
+      <strong>${redName} (Time A)</strong>
+      <table><thead><tr><th>#</th><th>Atleta</th><th>Função</th></tr></thead><tbody>${lineupRows(redLineup)}</tbody></table>
+    </div>
+    <div>
+      <strong>${whiteName} (Time B)</strong>
+      <table><thead><tr><th>#</th><th>Atleta</th><th>Função</th></tr></thead><tbody>${lineupRows(whiteLineup)}</tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Gols e Eventos de Pontuação</h2>
+  <table><thead><tr><th>Minuto</th><th>Tipo</th><th>Atleta</th><th>Time</th></tr></thead><tbody>${eventsRows(goals)}</tbody></table>
+</div>
+
+<div class="section">
+  <h2>Substituições</h2>
+  <table><thead><tr><th>Minuto</th><th>Saiu</th><th>Entrou</th><th>Time</th></tr></thead><tbody>${subsRows(game.substitutions)}</tbody></table>
+</div>
+
+<div class="section">
+  <h2>Cartões</h2>
+  <table><thead><tr><th>Atleta</th><th>Cartão</th><th>Minuto</th></tr></thead><tbody>${cardRows(cards)}</tbody></table>
+</div>
+
+<button onclick="window.print()" style="margin-top:16px;padding:8px 20px;cursor:pointer;">Imprimir</button>
+</body>
+</html>`;
+
+    return reply.header("Content-Type", "text/html; charset=utf-8").send(html);
+  });
+
+  // Evolution 6 — Convocar atletas com notificação
+  app.post("/sports/games/:id/callups", { preHandler: app.authorize(["ADMIN"]) }, async (request, reply) => {
+    const params = gameIdParamsSchema.parse(request.params);
+    const payload = z.object({
+      athleteIds: z.array(z.string()).min(1)
+    }).parse(request.body);
+
+    const game = await prisma.game.findUnique({
+      where: { id: params.id },
+      select: { id: true, date: true, location: true, type: true, tenantId: true }
+    });
+
+    if (!game) {
+      return reply.status(404).send({ message: "Jogo não encontrado" });
+    }
+
+    const results: Array<{ athleteId: string; callupId: string; notified: boolean }> = [];
+
+    for (const athleteId of payload.athleteIds) {
+      // Cria/atualiza callup com status CALLED
+      const callup = await prisma.gameCallUp.upsert({
+        where: { gameId_athleteId: { gameId: params.id, athleteId } },
+        update: { status: CallUpStatus.CALLED },
+        create: {
+          gameId: params.id,
+          athleteId,
+          status: CallUpStatus.CALLED,
+          ...(game.tenantId ? { tenantId: game.tenantId } : {})
+        }
+      });
+
+      // Busca contato do atleta via associate
+      const athlete = await prisma.athlete.findUnique({
+        where: { id: athleteId },
+        select: {
+          name: true,
+          associate: { select: { email: true, phone: true } }
+        }
+      });
+
+      let notified = false;
+
+      if (athlete) {
+        const email = athlete.associate?.email ?? null;
+        const phone = athlete.associate?.phone ?? null;
+
+        if (email) {
+          const result = await sendGameReminderEmail({
+            to: email,
+            athleteName: athlete.name,
+            gameDate: game.date,
+            gameLocation: game.location,
+            gameType: game.type
+          });
+          if (result.success) notified = true;
+        }
+
+        if (phone) {
+          const result = await sendGameReminderWhatsapp({
+            phone,
+            athleteName: athlete.name,
+            gameDate: game.date,
+            gameLocation: game.location,
+            gameType: game.type
+          });
+          if (result.success) notified = true;
+        }
+      }
+
+      results.push({ athleteId, callupId: callup.id, notified });
+    }
+
+    return reply.code(201).send({ gameId: params.id, callups: results });
   });
 }
 
