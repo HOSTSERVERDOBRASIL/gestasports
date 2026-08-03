@@ -33,7 +33,9 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/frontend/dist ./frontend/dist
 COPY --from=build /app/prisma ./prisma
+COPY start.sh ./start.sh
+RUN chmod +x start.sh
 
 EXPOSE 3333
 
-CMD ["node", "dist/server.js"]
+CMD ["sh", "start.sh"]
