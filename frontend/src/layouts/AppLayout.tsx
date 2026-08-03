@@ -148,7 +148,7 @@ function getRoleHomePath(role: UserRole) {
   }
 
   if (role === "FINANCIAL") {
-    return "/financeiro";
+    return "/financeiro/dashboard";
   }
 
   return "/";

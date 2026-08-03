@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import type { ReactNode } from "react";
 import { AppLayout } from "../layouts/AppLayout";
-import { AdministrativeDashboardPage, AssociateDashboardPage, SportsDirectorDashboardPage } from "../pages/RoleDashboardPages";
+import { AdministrativeDashboardPage } from "../pages/RoleDashboardPages";
 import { InvitePage } from "../pages/InvitePage";
 import { LoginPage } from "../pages/LoginPage";
 import { RecoverPasswordPage } from "../pages/RecoverPasswordPage";
@@ -91,6 +91,13 @@ import {
   AthletePortalProfilePage,
   AthletePortalAchievementsPage
 } from "../pages/AthletePortalPages";
+import {
+  AssociatePortalDashboardPage,
+  AssociatePortalMensalidadesPage,
+  AssociatePortalPerfilPage,
+  SportsDirectorPortalDashboardPage,
+  FinancialPortalDashboardPage
+} from "../pages/RolePortalPages";
 import { JogosTeamsFieldPage } from "../pages/TeamsFieldPages";
 import { InternalLeaguesPage } from "../pages/InternalLeaguesPage";
 import { TrainingSessionsPage } from "../pages/TrainingSessionsPage";
@@ -104,7 +111,7 @@ function homePathForRole(role: UserRole | null | undefined) {
   if (role === "ATHLETE") return "/atleta";
   if (role === "SPORTS_DIRECTOR") return "/esportes";
   if (role === "ASSOCIATE") return "/associado";
-  if (role === "FINANCIAL") return "/financeiro?area=DASHBOARD";
+  if (role === "FINANCIAL") return "/financeiro/dashboard";
   return "/";
 }
 
@@ -138,8 +145,7 @@ export function AppRoutes() {
 
       <Route path="/" element={<AppLayout />}>
         <Route index element={<RequireRoles roles={adminRoles}><AdministrativeDashboardPage /></RequireRoles>} />
-        <Route path="esportes" element={<RequireRoles roles={["SPORTS_DIRECTOR"]}><SportsDirectorDashboardPage /></RequireRoles>} />
-        <Route path="associado" element={<RequireRoles roles={["ASSOCIATE"]}><AssociateDashboardPage /></RequireRoles>} />
+
         <Route path="associacao" element={<RequireRoles roles={managementRoles}><AssociacaoPage /></RequireRoles>} />
         <Route path="associacao/:slug" element={<RequireRoles roles={managementRoles}><AssociacaoDetailPage /></RequireRoles>} />
         <Route path="pessoas" element={<RequireRoles roles={managementRoles}><PessoasPage /></RequireRoles>} />
@@ -258,6 +264,14 @@ export function AppRoutes() {
       <Route path="atleta/carreira" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalCareerPage /></RequireRoles>} />
       <Route path="atleta/conquistas" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalAchievementsPage /></RequireRoles>} />
       <Route path="atleta/perfil" element={<RequireRoles roles={["ATHLETE"]}><AthletePortalProfilePage /></RequireRoles>} />
+
+      <Route path="associado" element={<RequireRoles roles={["ASSOCIATE"]}><AssociatePortalDashboardPage /></RequireRoles>} />
+      <Route path="associado/mensalidades" element={<RequireRoles roles={["ASSOCIATE"]}><AssociatePortalMensalidadesPage /></RequireRoles>} />
+      <Route path="associado/perfil" element={<RequireRoles roles={["ASSOCIATE"]}><AssociatePortalPerfilPage /></RequireRoles>} />
+
+      <Route path="esportes" element={<RequireRoles roles={["SPORTS_DIRECTOR"]}><SportsDirectorPortalDashboardPage /></RequireRoles>} />
+
+      <Route path="financeiro/dashboard" element={<RequireRoles roles={["FINANCIAL", "ADMIN"]}><FinancialPortalDashboardPage /></RequireRoles>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
